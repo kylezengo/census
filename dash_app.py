@@ -62,7 +62,7 @@ app.layout = html.Div([
             placeholder="Select metrics...",
             style={'fontFamily': 'Arial'}
         ),
-        html.Iframe(id='dma_map', width='100%', height='550')
+        html.Iframe(id='dma_map', width='100%', height='500')
     ]),
     html.Div([
         html.Label("Select DMA", style={'fontFamily': 'Arial','fontWeight': 'bold'}),
@@ -74,7 +74,7 @@ app.layout = html.Div([
             placeholder="Select DMA...",
             style={'fontFamily': 'Arial'}
         ),
-        html.Iframe(id='zcta_map', width='100%', height='550')
+        html.Iframe(id='zcta_map', width='100%', height='500')
     ])
 ])
 
