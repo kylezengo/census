@@ -14,13 +14,9 @@ ACS_URL = "https://api.census.gov/data/2022/acs/acs5"
 load_dotenv()
 census_api_key = os.getenv("census_api_key")
 
-
-####################################################################################################
-############################################ LOAD FILES ############################################
-####################################################################################################
-# ZIP to ZCTA source: https://udsmapper.org/zip-code-to-zcta-crosswalk/
+# Load files
 zip_to_zcta_raw = pd.read_excel(
-    "ZIPCodetoZCTACrosswalk2021UDS.xlsx",
+    "ZIPCodetoZCTACrosswalk2021UDS.xlsx", # https://udsmapper.org/zip-code-to-zcta-crosswalk/
     dtype = {'ZIP_CODE':object,'ZCTA':object}
 )
 zip_to_dma_raw = pd.read_csv("zip_to_dma.csv", dtype = {'zip_code':object, 'dma_code':object})
@@ -30,10 +26,19 @@ zip_to_dma_raw = pd.read_csv("zip_to_dma.csv", dtype = {'zip_code':object, 'dma_
 ####################################################################################################
 ########################################## DOWNLOAD DATA ###########################################
 ####################################################################################################
-# Get the ZCTA cartographic boundary file with cb = True, seems to only work for 2020 right now
-zcta_geom = pygris.zctas(year=2020, cb = True)
-zcta_geom.to_file("zcta_geom.shp", index=False)
+# Get the cartographic boundary files with cb = True, seems to only work for 2020 right now
+# Commenting out since I already have these files downloaded
+# state_geom = pygris.states(year=2020, cb = True)
+# state_geom.to_file("state_geom.shp", index=False)
 
+# counties_geom = pygris.counties(year=2020, cb = True)
+# counties_geom.to_file("counties_geom.shp", index=False)
+
+# zcta_geom = pygris.zctas(year=2020, cb = True)
+# zcta_geom.to_file("zcta_geom.shp", index=False)
+
+# block_groups_geom = pygris.block_groups(year=2020, cb = True)
+# block_groups_geom.to_file("block_groups_geom.shp", index=False)
 
 # Get variable options
 response = requests.get("https://api.census.gov/data/2022/acs/acs5/variables.json", timeout=20)
@@ -46,6 +51,47 @@ variables = variables.reset_index(names='variable')
 variables_to_get = variables.loc[variables["group"] == "B01001",'variable']
 var_str = ",".join(variables_to_get) # convert to comma-separated string for API call
 
+more_variables_to_get = [
+    "B11012_001E", # N Census Households
+    "B19001_014E", # N Census Household Income 100-124
+    "B19001_015E", # N Census Household Income 125-149
+    "B19001_016E", # N Census Household Income 150-199
+    "B19001_017E", # N Census Household Income 200+
+    "B19049_003E"  # Median Census Household Income 25-44
+]
+more_var_str = ",".join(more_variables_to_get)
+
+# States data
+params = {
+    "get": f"NAME,{var_str}",
+    "for": "state:*",
+    "key": census_api_key
+}
+response = requests.get(ACS_URL, params=params, timeout=20)
+
+if response.status_code != 200:
+    print(f"Error {response.status_code}: {response.text}")
+else:
+    state = response.json()
+    state_df = pd.DataFrame(state[1:], columns=state[0])
+    state_df = state_df.drop(columns='state')
+
+# Calls are seperated because I can only request 50 variables at once
+params = {
+    "get": f"NAME,{more_var_str}",
+    "for": "state:*",
+    "key": census_api_key
+}
+response = requests.get(ACS_URL, params=params, timeout=20)
+
+if response.status_code != 200:
+    print(f"Error {response.status_code}: {response.text}")
+else:
+    more_state = response.json()
+    more_state_df = pd.DataFrame(more_state[1:], columns=more_state[0])
+    more_state_df = more_state_df.drop(columns='state')
+
+# ZCTA data
 params = {
     "get": f"NAME,{var_str}",
     "for": "zip code tabulation area:*",
@@ -60,19 +106,8 @@ else:
     data_df = pd.DataFrame(data[1:], columns=data[0])
     data_df = data_df.drop(columns='NAME')
 
-# Calls are seperated because I can only request 50 variables at once
-more_variables_to_get = [
-    "B11012_001E", # N Census Households
-    "B19001_014E", # N Census Household Income 100-124
-    "B19001_015E", # N Census Household Income 125-149
-    "B19001_016E", # N Census Household Income 150-199
-    "B19001_017E", # N Census Household Income 200+
-    "B19049_003E"  # Median Census Household Income 25-44
-]
-var_str = ",".join(more_variables_to_get)
-
 params = {
-    "get": f"NAME,{var_str}",
+    "get": f"NAME,{more_var_str}",
     "for": "zip code tabulation area:*",
     "key": census_api_key
 }
@@ -84,7 +119,6 @@ else:
     more_data = response.json()
     more_data_df = pd.DataFrame(more_data[1:], columns=more_data[0])
     more_data_df = more_data_df.drop(columns='NAME')
-
 
 
 ####################################################################################################
@@ -117,15 +151,19 @@ zip_to_zcta_dma = zip_to_zcta_dma.drop(columns=['zip_code_zcta_join','dma_code_z
 zcta_to_dma = zip_to_zcta_dma[['zcta','dma']].drop_duplicates()
 
 # Clean up census data
-c_zcta = data_df.merge(more_data_df, how='outer', on='zip code tabulation area') # maybe can get away with inner join?
+c_zcta = data_df.merge(more_data_df, how='outer', on='zip code tabulation area')
+
+c_state = state_df.merge(more_state_df, how='outer', on='NAME')
+c_state = c_state.rename(columns={'NAME': 'state'})
 
 # Convert numbers from string to integer
 metrics = list(variables_to_get) + more_variables_to_get
 
 c_zcta[metrics] = c_zcta[metrics].astype(float)
+c_state[metrics] = c_state[metrics].astype(float)
 
 # Rename columns for clarity
-c_zcta = c_zcta.rename(columns={
+cols_to_rename = {
     'zip code tabulation area': 'zcta'
     ,'B01001_001E': 'Pop - Total'
     ,'B01001_002E': 'Pop - Male'
@@ -182,7 +220,10 @@ c_zcta = c_zcta.rename(columns={
     ,'B19001_016E': 'N Census Household Income 150-199'
     ,'B19001_017E': 'N Census Household Income 200+'
     ,'B19049_003E': 'Median Census Household Income 25-44'
-})
+}
+
+c_zcta = c_zcta.rename(columns=cols_to_rename)
+c_state = c_state.rename(columns=cols_to_rename)
 
 # Aggregate decades
 c_zcta['Pop - Male Under 10 years'] = c_zcta['Pop - Male Under 5 years'] + c_zcta['Pop - Male 5 to 9 years']
@@ -233,10 +274,19 @@ c_zcta['mf_ratio_60 to 69 years'] = c_zcta['Pop - Male 60 to 69 years'] / c_zcta
 c_zcta['mf_ratio_70 to 79 years'] = c_zcta['Pop - Male 70 to 79 years'] / c_zcta['Pop - Female 70 to 79 years']
 c_zcta['mf_ratio_80 years and over'] = c_zcta['Pop - Male 80 years and over'] / c_zcta['Pop - Female 80 years and over']
 
+c_state['mf_ratio'] = c_state['Pop - Male'] / c_state['Pop - Female']
+
 # Income ratios
 c_zcta['Household Income 200+_ratio'] = c_zcta['N Census Household Income 200+'] / c_zcta['N Census Households']
 
+c_state['Household Income 200+_ratio'] = c_state['N Census Household Income 200+'] / c_state['N Census Households']
+
 c_zcta = c_zcta.replace([np.inf, -np.inf], np.nan)
+c_zcta = c_zcta.replace(-666666666, np.nan)
+
+c_state = c_state.replace([np.inf, -np.inf], np.nan)
+c_state = c_state.replace(-666666666, np.nan)
+
 
 ######################################################
 # DMA Stuff ##########################################
@@ -269,5 +319,6 @@ c_dma['Household Income 200+_ratio'] = c_dma['N Census Household Income 200+'] /
 ####################################################################################################
  # Save csv (mostly static data so just overwrite)
 zcta_to_dma.to_csv("zcta_to_dma.csv", index=False)
-c_zcta_dma.to_csv("c_zcta_dma.csv", index=False)
+c_state.to_csv("c_state.csv", index=False)
 c_dma.to_csv("c_dma.csv", index=False)
+c_zcta_dma.to_csv("c_zcta_dma.csv", index=False)
