@@ -15,38 +15,7 @@ load_dotenv()
 census_api_key = os.getenv("census_api_key")
 
 # Load files
-zip_to_zcta_raw = pd.read_excel(
-    "ZIPCodetoZCTACrosswalk2021UDS.xlsx", # https://udsmapper.org/zip-code-to-zcta-crosswalk/
-    dtype = {'ZIP_CODE':object,'ZCTA':object}
-)
-zip_to_dma_raw = pd.read_csv("zip_to_dma.csv", dtype = {'zip_code':object, 'dma_code':object})
-
-# Create zcta_to_dma
-zip_to_zcta = zip_to_zcta_raw.copy()
-zip_to_zcta.columns = zip_to_zcta.columns.str.lower()
-
-zip_to_dma = zip_to_dma_raw.rename(columns={'dma_description_clean':'dma'})
-zip_to_dma = zip_to_dma.drop(columns=['dma_description'])
-
-zip_to_zcta = zip_to_zcta.loc[~zip_to_zcta['state'].isin(["PR","VI"])]
-
-zip_to_zcta_dma = zip_to_zcta.merge(zip_to_dma, how='left', on='zip_code') # might want full outer?
-zip_to_zcta_dma = zip_to_zcta_dma.merge(
-    zip_to_dma.rename(columns={
-        'zip_code':'zip_code_zcta_join'
-        ,'dma_code':'dma_code_zcta_join'
-        ,'dma':'dma_zcta_join'
-    }),
-    how='left',
-    left_on='zcta',
-    right_on='zip_code_zcta_join'
-)
-zip_to_zcta_dma['dma_code'] = zip_to_zcta_dma['dma_code'].fillna(zip_to_zcta_dma['dma_code_zcta_join'])
-zip_to_zcta_dma['dma'] = zip_to_zcta_dma['dma'].fillna(zip_to_zcta_dma['dma_zcta_join'])
-zip_to_zcta_dma = zip_to_zcta_dma.drop(columns=['zip_code_zcta_join','dma_code_zcta_join','dma_zcta_join'])
-
-zcta_to_dma = zip_to_zcta_dma[['zcta','dma']].drop_duplicates()
-
+zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={'zcta':object})
 
 
 ####################################################################################################
@@ -117,19 +86,15 @@ for i in to_get:
     else:
         more_data = response.json()
         more_data_df = pd.DataFrame(more_data[1:], columns=more_data[0])
-    
+
     if i == "state":
-        # data_df = data_df.drop(columns='state')
         more_data_df = more_data_df.drop(columns='state')
 
         df = data_df.merge(more_data_df, how='outer', on='NAME')
-        # df = df.rename(columns={'NAME': 'state'})
     elif i == "county":
-        # data_df = data_df.drop(columns='county')
         more_data_df = more_data_df.drop(columns=['state','county'])
 
         df = data_df.merge(more_data_df, how='outer', on='NAME')
-        # df = df.rename(columns={'NAME': 'county'})
     else:
         data_df = data_df.drop(columns='NAME')
         more_data_df = more_data_df.drop(columns='NAME')
@@ -150,17 +115,58 @@ state_name = dfs['state'][['state','NAME']].rename(columns={'NAME': 'state_NAME'
 c_county_state = c_county.merge(state_name, how='left', on='state')
 c_county_state['GEOID'] = c_county_state['state'] + c_county_state['county']
 
+# block group ######################################################################################
+state_fips = "36"  # New York
+counties = ["005", "047", "061", "081", "085"]  # NYC counties (example) 
+block_group_dfs = []
+for county in counties:
+    params = {
+        "get": f"NAME,{var_str}",
+        "for": "block group:*",
+        "in": f"state:{state_fips} county:{county}",
+        "key": census_api_key
+    }
+    response = requests.get(ACS_URL, params=params, timeout=20)
 
+    if response.status_code != 200:
+        print(f"Error {response.status_code}: {response.text}")
+    else:
+        data = response.json()
+        data_df = pd.DataFrame(data[1:], columns=data[0])
+
+    # Calls are seperated because I can only request 50 variables at once
+    params = {
+        "get": f"NAME,{more_var_str}",
+        "for": "block group:*",
+        "in": f"state:{state_fips} county:{county}",
+        "key": census_api_key
+    }
+    response = requests.get(ACS_URL, params=params, timeout=20)
+
+    if response.status_code != 200:
+        print(f"Error {response.status_code}: {response.text}")
+    else:
+        more_data = response.json()
+        more_data_df = pd.DataFrame(more_data[1:], columns=more_data[0])
+
+    df = data_df.merge(more_data_df, how='outer', on=['NAME', 'state', 'county', 'tract', 'block group'])
+    
+    block_group_dfs.append(df)
+
+# Combine all block group dataframes
+c_block_group = pd.concat(block_group_dfs, ignore_index=True)
+
+c_block_group['GEOID'] = (
+    c_block_group['state'] +
+    c_block_group['county'] +
+    c_block_group['tract'].str.zfill(6) +  # pad tract to 6 digits if needed
+    c_block_group['block group']
+)
 ####################################################################################################
 ############################################# CLEAN UP #############################################
 ####################################################################################################
 # Convert numbers from string to integer
 metrics = list(variables_to_get) + more_variables_to_get
-
-c_state[metrics] = c_state[metrics].astype(float)
-c_county_state[metrics] = c_county_state[metrics].astype(float)
-c_zcta[metrics] = c_zcta[metrics].astype(float)
-
 
 # Rename columns for clarity
 cols_to_rename = {
@@ -222,10 +228,17 @@ cols_to_rename = {
     ,'B19049_003E': 'Median Census Household Income 25-44'
 }
 
+c_state[metrics] = c_state[metrics].astype(float)
 c_state = c_state.rename(columns=cols_to_rename)
+
+c_county_state[metrics] = c_county_state[metrics].astype(float)
 c_county_state = c_county_state.rename(columns=cols_to_rename)
+
+c_zcta[metrics] = c_zcta[metrics].astype(float)
 c_zcta = c_zcta.rename(columns=cols_to_rename)
 
+c_block_group[metrics] = c_block_group[metrics].astype(float)
+c_block_group = c_block_group.rename(columns=cols_to_rename)
 
 # Aggregate decades
 c_zcta['Pop - Male Under 10 years'] = c_zcta['Pop - Male Under 5 years'] + c_zcta['Pop - Male 5 to 9 years']
@@ -264,6 +277,8 @@ c_state['mf_ratio'] = c_state['Pop - Male'] / c_state['Pop - Female']
 
 c_county_state['mf_ratio'] = c_county_state['Pop - Male'] / c_county_state['Pop - Female']
 
+c_block_group['mf_ratio'] = c_block_group['Pop - Male'] / c_block_group['Pop - Female']
+
 # Income ratios
 c_state['Household Income 200+_ratio'] = c_state['N Census Household Income 200+'] / c_state['N Census Households']
 
@@ -271,15 +286,16 @@ c_county_state['Household Income 200+_ratio'] = c_county_state['N Census Househo
 
 c_zcta['Household Income 200+_ratio'] = c_zcta['N Census Household Income 200+'] / c_zcta['N Census Households']
 
-#
-c_state = c_state.replace([np.inf, -np.inf], np.nan)
-c_state = c_state.replace(-666666666, np.nan)
+c_block_group['Household Income 200+_ratio'] = c_block_group['N Census Household Income 200+'] / c_block_group['N Census Households']
 
-c_county_state = c_county_state.replace([np.inf, -np.inf], np.nan)
-c_county_state = c_county_state.replace(-666666666, np.nan)
+# Replace inf and -666666666 (missing) with NaN
+c_state = c_state.replace([np.inf, -np.inf, -666666666], np.nan)
 
-c_zcta = c_zcta.replace([np.inf, -np.inf], np.nan)
-c_zcta = c_zcta.replace(-666666666, np.nan)
+c_county_state = c_county_state.replace([np.inf, -np.inf, -666666666], np.nan)
+
+c_zcta = c_zcta.replace([np.inf, -np.inf, -666666666], np.nan)
+
+c_block_group = c_block_group.replace([np.inf, -np.inf, -666666666], np.nan)
 
 
 ######################################################
@@ -311,10 +327,9 @@ c_dma['Household Income 200+_ratio'] = c_dma['N Census Household Income 200+'] /
 ####################################################################################################
 ############################################### SAVE ###############################################
 ####################################################################################################
- # Save csv (mostly static data so just overwrite)
-zcta_to_dma.to_csv("zcta_to_dma.csv", index=False)
-
+# Save csv (mostly static data so just overwrite)
 c_state.to_csv("c_state.csv", index=False)
 c_dma.to_csv("c_dma.csv", index=False)
 c_county_state.to_csv("c_county_state.csv", index=False)
 c_zcta_dma.to_csv("c_zcta_dma.csv", index=False)
+c_block_group.to_csv("c_block_group.csv", index=False)
