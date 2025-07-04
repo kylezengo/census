@@ -116,42 +116,45 @@ c_county_state = c_county.merge(state_name, how='left', on='state')
 c_county_state['GEOID'] = c_county_state['state'] + c_county_state['county']
 
 # block group ######################################################################################
-state_fips = "36"  # New York
-counties = ["005", "047", "061", "081", "085"]  # NYC counties (example) 
+state_counties = {
+    "36": ["005", "047", "061", "081", "085"],  # NY counties (NYC)
+    "06": ["075"],                              # CA counties (SF)
+}
 block_group_dfs = []
-for county in counties:
-    params = {
-        "get": f"NAME,{var_str}",
-        "for": "block group:*",
-        "in": f"state:{state_fips} county:{county}",
-        "key": census_api_key
-    }
-    response = requests.get(ACS_URL, params=params, timeout=20)
+for state_fips, counties in state_counties.items():
+    for county in counties:
+        params = {
+            "get": f"NAME,{var_str}",
+            "for": "block group:*",
+            "in": f"state:{state_fips} county:{county}",
+            "key": census_api_key
+        }
+        response = requests.get(ACS_URL, params=params, timeout=20)
 
-    if response.status_code != 200:
-        print(f"Error {response.status_code}: {response.text}")
-    else:
-        data = response.json()
-        data_df = pd.DataFrame(data[1:], columns=data[0])
+        if response.status_code != 200:
+            print(f"Error {response.status_code}: {response.text}")
+        else:
+            data = response.json()
+            data_df = pd.DataFrame(data[1:], columns=data[0])
 
-    # Calls are seperated because I can only request 50 variables at once
-    params = {
-        "get": f"NAME,{more_var_str}",
-        "for": "block group:*",
-        "in": f"state:{state_fips} county:{county}",
-        "key": census_api_key
-    }
-    response = requests.get(ACS_URL, params=params, timeout=20)
+        # Calls are seperated because I can only request 50 variables at once
+        params = {
+            "get": f"NAME,{more_var_str}",
+            "for": "block group:*",
+            "in": f"state:{state_fips} county:{county}",
+            "key": census_api_key
+        }
+        response = requests.get(ACS_URL, params=params, timeout=20)
 
-    if response.status_code != 200:
-        print(f"Error {response.status_code}: {response.text}")
-    else:
-        more_data = response.json()
-        more_data_df = pd.DataFrame(more_data[1:], columns=more_data[0])
+        if response.status_code != 200:
+            print(f"Error {response.status_code}: {response.text}")
+        else:
+            more_data = response.json()
+            more_data_df = pd.DataFrame(more_data[1:], columns=more_data[0])
 
-    df = data_df.merge(more_data_df, how='outer', on=['NAME', 'state', 'county', 'tract', 'block group'])
-    
-    block_group_dfs.append(df)
+        df = data_df.merge(more_data_df, how='outer', on=['NAME', 'state', 'county', 'tract', 'block group'])
+        
+        block_group_dfs.append(df)
 
 # Combine all block group dataframes
 c_block_group = pd.concat(block_group_dfs, ignore_index=True)
@@ -162,16 +165,23 @@ c_block_group['GEOID'] = (
     c_block_group['tract'].str.zfill(6) +  # pad tract to 6 digits if needed
     c_block_group['block group']
 )
+
 ####################################################################################################
 ############################################# CLEAN UP #############################################
 ####################################################################################################
-# Convert numbers from string to integer
+# Join ZCTA to DMA and create c_dma
 metrics = list(variables_to_get) + more_variables_to_get
+
+c_zcta = c_zcta.rename(columns={'zip code tabulation area': 'zcta'})
+
+c_zcta_dma = c_zcta.merge(zcta_to_dma, how='left', on='zcta')
+c_zcta_dma[metrics] = c_zcta_dma[metrics].astype(float)
+
+c_dma = c_zcta_dma.groupby('dma', as_index=False, dropna=False).sum(numeric_only=True)
 
 # Rename columns for clarity
 cols_to_rename = {
-    'zip code tabulation area': 'zcta'
-    ,'B01001_001E': 'Pop - Total'
+    'B01001_001E': 'Pop - Total'
     ,'B01001_002E': 'Pop - Male'
     ,'B01001_003E': 'Pop - Male Under 5 years'
     ,'B01001_004E': 'Pop - Male 5 to 9 years'
@@ -228,100 +238,58 @@ cols_to_rename = {
     ,'B19049_003E': 'Median Census Household Income 25-44'
 }
 
-c_state[metrics] = c_state[metrics].astype(float)
-c_state = c_state.rename(columns=cols_to_rename)
+decade_aggregations = [
+    ('Under 10 years', ['Under 5 years', '5 to 9 years']),
+    ('10 to 19 years', ['10 to 14 years', '15 to 17 years', '18 and 19 years']),
+    ('20 to 29 years', ['20 years', '21 years', '22 to 24 years', '25 to 29 years']),
+    ('30 to 39 years', ['30 to 34 years', '35 to 39 years']),
+    ('40 to 49 years', ['40 to 44 years', '45 to 49 years']),
+    ('50 to 59 years', ['50 to 54 years', '55 to 59 years']),
+    ('60 to 69 years', ['60 and 61 years', '62 to 64 years', '65 and 66 years', '67 to 69 years']),
+    ('70 to 79 years', ['70 to 74 years', '75 to 79 years']),
+    ('80 years and over', ['80 to 84 years', '85 years and over']),
+]
 
-c_county_state[metrics] = c_county_state[metrics].astype(float)
-c_county_state = c_county_state.rename(columns=cols_to_rename)
+decade_labels = [
+    'Under 10 years',
+    '10 to 19 years',
+    '20 to 29 years',
+    '30 to 39 years',
+    '40 to 49 years',
+    '50 to 59 years',
+    '60 to 69 years',
+    '70 to 79 years',
+    '80 years and over'
+]
 
-c_zcta[metrics] = c_zcta[metrics].astype(float)
-c_zcta = c_zcta.rename(columns=cols_to_rename)
+pop_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_block_group]
+for df in pop_dfs:
+    df[metrics] = df[metrics].astype(float)
+    df.rename(columns=cols_to_rename, inplace=True)
 
-c_block_group[metrics] = c_block_group[metrics].astype(float)
-c_block_group = c_block_group.rename(columns=cols_to_rename)
+    df['mf_ratio'] = df['Pop - Male'] / df['Pop - Female']
+    df['mf_ratio_log'] = np.log1p(df['mf_ratio'])  # easier to visualize extreme values
+    df['Household Income 200+_ratio'] = (
+        df['N Census Household Income 200+'] / df['N Census Households']
+    )
+    for gender in ['Male', 'Female']:
+        for decade, cols in decade_aggregations:
+            colnames = [f'Pop - {gender} {c}' for c in cols]
+            new_col = f'Pop - {gender} {decade}'
+            df[new_col] = df[colnames].sum(axis=1)
+    for decade in decade_labels:
+        male_col = f'Pop - Male {decade}'
+        female_col = f'Pop - Female {decade}'
+        ratio_col = f'mf_ratio_{decade}'
+        df[ratio_col] = df[male_col] / df[female_col]
+        df[f'{ratio_col}_log'] = np.log1p(df[ratio_col])
 
-# Aggregate decades
-c_zcta['Pop - Male Under 10 years'] = c_zcta['Pop - Male Under 5 years'] + c_zcta['Pop - Male 5 to 9 years']
-c_zcta['Pop - Male 10 to 19 years'] = c_zcta['Pop - Male 10 to 14 years'] + c_zcta['Pop - Male 15 to 17 years'] +  c_zcta['Pop - Male 18 and 19 years']
-c_zcta['Pop - Male 20 to 29 years'] = c_zcta['Pop - Male 20 years'] + c_zcta['Pop - Male 21 years'] + c_zcta['Pop - Male 22 to 24 years'] + c_zcta['Pop - Male 25 to 29 years']
-c_zcta['Pop - Male 30 to 39 years'] = c_zcta['Pop - Male 30 to 34 years'] + c_zcta['Pop - Male 35 to 39 years']
-c_zcta['Pop - Male 40 to 49 years'] = c_zcta['Pop - Male 40 to 44 years'] + c_zcta['Pop - Male 45 to 49 years']
-c_zcta['Pop - Male 50 to 59 years'] = c_zcta['Pop - Male 50 to 54 years'] + c_zcta['Pop - Male 55 to 59 years']
-c_zcta['Pop - Male 60 to 69 years'] = c_zcta['Pop - Male 60 and 61 years'] + c_zcta['Pop - Male 62 to 64 years'] + c_zcta['Pop - Male 65 and 66 years'] + c_zcta['Pop - Male 67 to 69 years']
-c_zcta['Pop - Male 70 to 79 years'] = c_zcta['Pop - Male 70 to 74 years'] + c_zcta['Pop - Male 75 to 79 years']
-c_zcta['Pop - Male 80 years and over'] = c_zcta['Pop - Male 80 to 84 years'] + c_zcta['Pop - Male 85 years and over']
+    df.replace([np.inf, -np.inf, -666666666], np.nan, inplace=True)
 
-c_zcta['Pop - Female Under 10 years'] = c_zcta['Pop - Female Under 5 years'] + c_zcta['Pop - Female 5 to 9 years']
-c_zcta['Pop - Female 10 to 19 years'] = c_zcta['Pop - Female 10 to 14 years'] + c_zcta['Pop - Female 15 to 17 years'] + c_zcta['Pop - Female 18 and 19 years']
-c_zcta['Pop - Female 20 to 29 years'] = c_zcta['Pop - Female 20 years'] + c_zcta['Pop - Female 21 years'] + c_zcta['Pop - Female 22 to 24 years'] + c_zcta['Pop - Female 25 to 29 years']
-c_zcta['Pop - Female 30 to 39 years'] = c_zcta['Pop - Female 30 to 34 years'] + c_zcta['Pop - Female 35 to 39 years']
-c_zcta['Pop - Female 40 to 49 years'] = c_zcta['Pop - Female 40 to 44 years'] + c_zcta['Pop - Female 45 to 49 years']
-c_zcta['Pop - Female 50 to 59 years'] = c_zcta['Pop - Female 50 to 54 years'] + c_zcta['Pop - Female 55 to 59 years']
-c_zcta['Pop - Female 60 to 69 years'] = c_zcta['Pop - Female 60 and 61 years'] + c_zcta['Pop - Female 62 to 64 years'] + c_zcta['Pop - Female 65 and 66 years'] + c_zcta['Pop - Female 67 to 69 years']
-c_zcta['Pop - Female 70 to 79 years'] = c_zcta['Pop - Female 70 to 74 years'] + c_zcta['Pop - Female 75 to 79 years']
-c_zcta['Pop - Female 80 years and over'] = c_zcta['Pop - Female 80 to 84 years'] + c_zcta['Pop - Female 85 years and over']
-
-# Sex ratios
-c_zcta['mf_ratio'] = c_zcta['Pop - Male'] / c_zcta['Pop - Female']
-c_zcta['mf_ratio_Under 10 years'] = c_zcta['Pop - Male Under 10 years'] / c_zcta['Pop - Female Under 10 years']
-c_zcta['mf_ratio_10 to 19 years'] = c_zcta['Pop - Male 10 to 19 years'] / c_zcta['Pop - Female 10 to 19 years']
-c_zcta['mf_ratio_20 to 29 years'] = c_zcta['Pop - Male 20 to 29 years'] / c_zcta['Pop - Female 20 to 29 years']
-c_zcta['mf_ratio_30 to 39 years'] = c_zcta['Pop - Male 30 to 39 years'] / c_zcta['Pop - Female 30 to 39 years']
-c_zcta['mf_ratio_40 to 49 years'] = c_zcta['Pop - Male 40 to 49 years'] / c_zcta['Pop - Female 40 to 49 years']
-c_zcta['mf_ratio_50 to 59 years'] = c_zcta['Pop - Male 50 to 59 years'] / c_zcta['Pop - Female 50 to 59 years']
-c_zcta['mf_ratio_60 to 69 years'] = c_zcta['Pop - Male 60 to 69 years'] / c_zcta['Pop - Female 60 to 69 years']
-c_zcta['mf_ratio_70 to 79 years'] = c_zcta['Pop - Male 70 to 79 years'] / c_zcta['Pop - Female 70 to 79 years']
-c_zcta['mf_ratio_80 years and over'] = c_zcta['Pop - Male 80 years and over'] / c_zcta['Pop - Female 80 years and over']
-
-c_state['mf_ratio'] = c_state['Pop - Male'] / c_state['Pop - Female']
-
-c_county_state['mf_ratio'] = c_county_state['Pop - Male'] / c_county_state['Pop - Female']
-
-c_block_group['mf_ratio'] = c_block_group['Pop - Male'] / c_block_group['Pop - Female']
-
-# Income ratios
-c_state['Household Income 200+_ratio'] = c_state['N Census Household Income 200+'] / c_state['N Census Households']
-
-c_county_state['Household Income 200+_ratio'] = c_county_state['N Census Household Income 200+'] / c_county_state['N Census Households']
-
-c_zcta['Household Income 200+_ratio'] = c_zcta['N Census Household Income 200+'] / c_zcta['N Census Households']
-
-c_block_group['Household Income 200+_ratio'] = c_block_group['N Census Household Income 200+'] / c_block_group['N Census Households']
-
-# Replace inf and -666666666 (missing) with NaN
-c_state = c_state.replace([np.inf, -np.inf, -666666666], np.nan)
-
-c_county_state = c_county_state.replace([np.inf, -np.inf, -666666666], np.nan)
-
-c_zcta = c_zcta.replace([np.inf, -np.inf, -666666666], np.nan)
-
-c_block_group = c_block_group.replace([np.inf, -np.inf, -666666666], np.nan)
-
-
-######################################################
-# DMA Stuff ##########################################
-c_zcta_dma = c_zcta.merge(zcta_to_dma, how='left', on='zcta')
-
-c_dma = c_zcta_dma.groupby('dma', as_index=False, dropna=False).sum(numeric_only=True)
-c_dma = c_dma.drop(columns='Median Census Household Income 25-44') # can do weighted avg or something instead
-
-pop_cols = [col for col in c_dma.columns if "Pop - " in col]
-c_dma[pop_cols] = c_dma[pop_cols].astype(float) # need float for map
-
-# Sex ratios
-c_dma['mf_ratio'] = c_dma['Pop - Male'] / c_dma['Pop - Female']
-c_dma['mf_ratio_Under 10 years'] = c_dma['Pop - Male Under 10 years'] / c_dma['Pop - Female Under 10 years']
-c_dma['mf_ratio_10 to 19 years'] = c_dma['Pop - Male 10 to 19 years'] / c_dma['Pop - Female 10 to 19 years']
-c_dma['mf_ratio_20 to 29 years'] = c_dma['Pop - Male 20 to 29 years'] / c_dma['Pop - Female 20 to 29 years']
-c_dma['mf_ratio_30 to 39 years'] = c_dma['Pop - Male 30 to 39 years'] / c_dma['Pop - Female 30 to 39 years']
-c_dma['mf_ratio_40 to 49 years'] = c_dma['Pop - Male 40 to 49 years'] / c_dma['Pop - Female 40 to 49 years']
-c_dma['mf_ratio_50 to 59 years'] = c_dma['Pop - Male 50 to 59 years'] / c_dma['Pop - Female 50 to 59 years']
-c_dma['mf_ratio_60 to 69 years'] = c_dma['Pop - Male 60 to 69 years'] / c_dma['Pop - Female 60 to 69 years']
-c_dma['mf_ratio_70 to 79 years'] = c_dma['Pop - Male 70 to 79 years'] / c_dma['Pop - Female 70 to 79 years']
-c_dma['mf_ratio_80 years and over'] = c_dma['Pop - Male 80 years and over'] / c_dma['Pop - Female 80 years and over']
-
-# Income ratios
-c_dma['Household Income 200+_ratio'] = c_dma['N Census Household Income 200+'] / c_dma['N Census Households']
+# Drop the 'Median Census Household Income 25-44' column from c_dma
+# This column has been summed over ZCTAs so it is now invalid
+# Could try to do weighted avg or something instead...
+c_dma = c_dma.drop(columns='Median Census Household Income 25-44')
 
 
 ####################################################################################################

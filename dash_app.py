@@ -48,9 +48,6 @@ county_geom_json = county_geom.to_json()
 zcta_geom = zcta_geom_raw.merge(zcta_to_dma[['zcta','dma']], how="left", left_on='ZCTA5CE20', right_on='zcta')
 
 block_group_geom = block_group_geom_raw[['GEOID', 'geometry']]
-block_group_geom = block_group_geom[block_group_geom['GEOID'].str[:5].isin(['36005', '36047', '36061', '36081', '36085'])] # NYC
-block_group_geom = block_group_geom.set_index('GEOID')
-block_group_geom_json = block_group_geom.to_json()
 
 # Create a indexed versions of the dataframes to lookup values
 c_state_indexed = c_state.set_index('state')
@@ -74,6 +71,8 @@ block_group_geoid = sorted(c_block_group['GEOID'].unique())
 
 dmas = c_dma['dma'].unique()
 # dmas.sort()
+
+cities = ['New York', 'San Francisco']
 
 # Set up Dash app ##################################################################################
 app = Dash(__name__)
@@ -172,6 +171,14 @@ app.layout = html.Div([
                         value=['Pop - Total'],
                         multi=True,
                         placeholder="Select metrics...",
+                    ),
+                    html.Label("Select City", style={'fontWeight': 'bold'}),
+                    dcc.Dropdown(
+                        id='city-selector',
+                        options=cities,
+                        value='New York',
+                        multi=False,
+                        placeholder="Select City..."
                     ),
                     html.Label("Exclude GEOIDs", style={'fontWeight': 'bold'}),
                     dcc.Dropdown(
@@ -413,15 +420,27 @@ def generate_zcta_map(selected_metrics, selected_dma, pop_min=None):
     m.fit_bounds(m.get_bounds(), padding=(10, 10))
     return m.get_root().render()
 
-def generate_block_group_map(selected_metrics, pop_min=None, exclude=None):
+def generate_block_group_map(selected_metrics, selected_city, pop_min=None, exclude=None):
     """
     Build folium map with user selected metrics
     360470018012 Prison
     360810426001 ?
     360050001001 Prison (Rikers)
     """
-    c_block_group_select = c_block_group.copy()
-    
+    if selected_city == 'San Francisco':
+        sf = ['06075'] # SF
+
+        c_block_group_select = c_block_group.loc[c_block_group['GEOID'].str[:5].isin(sf)].reset_index(drop=True)
+        block_group_geom_select = block_group_geom[block_group_geom['GEOID'].str[:5].isin(sf)]
+    else:
+        nyc = ['36005', '36047', '36061', '36081', '36085'] # NYC counties
+        
+        c_block_group_select = c_block_group.loc[c_block_group['GEOID'].str[:5].isin(nyc)].reset_index(drop=True)    
+        block_group_geom_select = block_group_geom[block_group_geom['GEOID'].str[:5].isin(nyc)]
+        
+    block_group_geom_select = block_group_geom_select.set_index('GEOID')
+    block_group_geom_select_json = block_group_geom_select.to_json()
+
     if pop_min is not None:
         c_block_group_select = c_block_group_select.loc[c_block_group_select['Pop - Total'] >= pop_min]
     if exclude:
@@ -443,7 +462,7 @@ def generate_block_group_map(selected_metrics, pop_min=None, exclude=None):
 
         my_chp = folium.Choropleth(
             tiles="cartodb positron",
-            geo_data=block_group_geom_json,
+            geo_data=block_group_geom_select_json,
             data=c_block_group_select,
             columns=['GEOID', i],
             key_on="feature.id",
@@ -510,12 +529,12 @@ def update_zcta_map(metrics, dma, pop_min):
 @app.callback(
     Output('block_group_map', 'srcDoc'),
     Input('block-group-metric-selector', 'value'),
+    Input("city-selector", "value"),
     Input("block-group-pop-min", "value"),
     Input("block-group-exclude", "value")
 )
-
-def update_block_group_map(metrics, pop_min, exclude):
-    return generate_block_group_map(metrics, pop_min, exclude)
+def update_block_group_map(metrics, city, pop_min, exclude):
+    return generate_block_group_map(metrics, city, pop_min, exclude)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
