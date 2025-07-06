@@ -44,9 +44,9 @@ var_to_get_misc = [
     "B19001_017E", # N Census Household Income 200+
     "B19049_003E"  # Median Census Household Income 25-44
 ]
-var_str_mist = ",".join(var_to_get_misc)
+var_str_misc = ",".join(var_to_get_misc)
 
-var_groups = [var_str_B01001, var_str_mist] # var_to_get_B01001A
+var_groups = [var_str_B01001, var_str_misc] # var_to_get_B01001A
 
 # Make API calls for each geography level
 to_get =["state", "county", "zip code tabulation area"]
