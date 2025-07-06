@@ -5,7 +5,6 @@ import requests
 
 import numpy as np
 import pandas as pd
-import pygris
 from dotenv import load_dotenv
 
 ACS_URL = "https://api.census.gov/data/2022/acs/acs5"
@@ -21,20 +20,6 @@ zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={'zcta':object})
 ####################################################################################################
 ########################################## DOWNLOAD DATA ###########################################
 ####################################################################################################
-# Get the cartographic boundary files with cb = True, seems to only work for 2020 right now
-# Commenting out since I already have these files downloaded
-# state_geom = pygris.states(year=2020, cb = True)
-# state_geom.to_file("state_geom.shp", index=False)
-
-# counties_geom = pygris.counties(year=2020, cb = True)
-# counties_geom.to_file("counties_geom.shp", index=False)
-
-# zcta_geom = pygris.zctas(year=2020, cb = True)
-# zcta_geom.to_file("zcta_geom.shp", index=False)
-
-# block_groups_geom = pygris.block_groups(year=2020, cb = True)
-# block_groups_geom.to_file("block_groups_geom.shp", index=False)
-
 # Get variable options
 response = requests.get("https://api.census.gov/data/2022/acs/acs5/variables.json", timeout=20)
 variables_json = response.json()
@@ -43,10 +28,15 @@ variables = pd.DataFrame.from_dict(variables_json["variables"], orient="index")
 variables = variables.reset_index(names='variable')
 
 # Get data for variables
-variables_to_get = variables.loc[variables["group"] == "B01001",'variable']
-var_str = ",".join(variables_to_get) # convert to comma-separated string for API call
+# B01001: Sex by Age
+# B01001A: Sex by Age (White Alone)
+var_to_get_B01001 = variables.loc[variables["group"] == "B01001",'variable']
+var_str_B01001 = ",".join(var_to_get_B01001) # convert to comma-separated string for API call
 
-more_variables_to_get = [
+var_to_get_B01001A = variables.loc[variables["group"] == "B01001A",'variable']
+var_str_B01001A = ",".join(var_to_get_B01001A)
+
+var_to_get_misc = [
     "B11012_001E", # N Census Households
     "B19001_014E", # N Census Household Income 100-124
     "B19001_015E", # N Census Household Income 125-149
@@ -54,54 +44,43 @@ more_variables_to_get = [
     "B19001_017E", # N Census Household Income 200+
     "B19049_003E"  # Median Census Household Income 25-44
 ]
-more_var_str = ",".join(more_variables_to_get)
+var_str_mist = ",".join(var_to_get_misc)
 
-# Get data for state, county, and zcta
+var_groups = [var_str_B01001, var_str_mist] # var_to_get_B01001A
+
+# Make API calls for each geography level
 to_get =["state", "county", "zip code tabulation area"]
 dfs = {}
 for i in to_get:
-    params = {
-        "get": f"NAME,{var_str}",
-        "for": f"{i}:*",
-        "key": census_api_key
-    }
-    response = requests.get(ACS_URL, params=params, timeout=20)
-
-    if response.status_code != 200:
-        print(f"Error {response.status_code}: {response.text}")
-    else:
-        data = response.json()
-        data_df = pd.DataFrame(data[1:], columns=data[0])
-
     # Calls are seperated because I can only request 50 variables at once
-    params = {
-        "get": f"NAME,{more_var_str}",
-        "for": f"{i}:*",
-        "key": census_api_key
-    }
-    response = requests.get(ACS_URL, params=params, timeout=20)
+    var_dfs = []
+    for var_str in var_groups:
+        params = {
+            "get": f"NAME,{var_str}",
+            "for": f"{i}:*",
+            "key": census_api_key
+        }
+        response = requests.get(ACS_URL, params=params, timeout=20)
 
-    if response.status_code != 200:
-        print(f"Error {response.status_code}: {response.text}")
+        if response.status_code != 200:
+            print(f"Error {response.status_code}: {response.text}")
+        else:
+            data = response.json()
+            data_df = pd.DataFrame(data[1:], columns=data[0])
+            var_dfs.append(data_df)
+
+    if i == "zip code tabulation area":
+        merged_df = var_dfs[0].drop(columns='NAME')
+        for df in var_dfs[1:]:
+            df = df.drop(columns='NAME')
+            merged_df = merged_df.merge(df, how='outer', on=i)
     else:
-        more_data = response.json()
-        more_data_df = pd.DataFrame(more_data[1:], columns=more_data[0])
+        merged_df = var_dfs[0]
+        for df in var_dfs[1:]:
+            df = df.drop(columns=['state','county'], errors='ignore')
+            merged_df = merged_df.merge(df, how='outer', on="NAME")
 
-    if i == "state":
-        more_data_df = more_data_df.drop(columns='state')
-
-        df = data_df.merge(more_data_df, how='outer', on='NAME')
-    elif i == "county":
-        more_data_df = more_data_df.drop(columns=['state','county'])
-
-        df = data_df.merge(more_data_df, how='outer', on='NAME')
-    else:
-        data_df = data_df.drop(columns='NAME')
-        more_data_df = more_data_df.drop(columns='NAME')
-
-        df = data_df.merge(more_data_df, how='outer', on=i)
-    
-    dfs[i] = df
+    dfs[i] = merged_df
 
 c_state = dfs['state']
 c_state = c_state.drop(columns='state')
@@ -115,18 +94,16 @@ state_name = dfs['state'][['state','NAME']].rename(columns={'NAME': 'state_NAME'
 c_county_state = c_county.merge(state_name, how='left', on='state')
 c_county_state['GEOID'] = c_county_state['state'] + c_county_state['county']
 
-# block group ######################################################################################
-state_counties = {
-    "36": ["005", "047", "061", "081", "085"],  # NY counties (NYC)
-    "06": ["075"],                              # CA counties (SF)
-}
-block_group_dfs = []
-for state_fips, counties in state_counties.items():
-    for county in counties:
+# tract ############################################################################################
+states = state_name['state'].unique()
+tract_dfs = []
+for state_fips in states:
+    var_dfs = []
+    for var_str in var_groups:
         params = {
             "get": f"NAME,{var_str}",
-            "for": "block group:*",
-            "in": f"state:{state_fips} county:{county}",
+            "for": "tract:*",
+            "in": f"state:{state_fips}",
             "key": census_api_key
         }
         response = requests.get(ACS_URL, params=params, timeout=20)
@@ -136,25 +113,57 @@ for state_fips, counties in state_counties.items():
         else:
             data = response.json()
             data_df = pd.DataFrame(data[1:], columns=data[0])
+            var_dfs.append(data_df)
 
-        # Calls are seperated because I can only request 50 variables at once
-        params = {
-            "get": f"NAME,{more_var_str}",
-            "for": "block group:*",
-            "in": f"state:{state_fips} county:{county}",
-            "key": census_api_key
-        }
-        response = requests.get(ACS_URL, params=params, timeout=20)
+    merged_df = var_dfs[0]
+    for df in var_dfs[1:]:
+        merged_df = merged_df.merge(df, how='outer', on=['NAME', 'state', 'county', 'tract'])
 
-        if response.status_code != 200:
-            print(f"Error {response.status_code}: {response.text}")
-        else:
-            more_data = response.json()
-            more_data_df = pd.DataFrame(more_data[1:], columns=more_data[0])
+    tract_dfs.append(merged_df)
 
-        df = data_df.merge(more_data_df, how='outer', on=['NAME', 'state', 'county', 'tract', 'block group'])
-        
-        block_group_dfs.append(df)
+# Combine all tract dataframes
+c_tract = pd.concat(tract_dfs, ignore_index=True)
+
+c_tract['GEOID'] = (
+    c_tract['state'] +
+    c_tract['county'] +
+    c_tract['tract'].str.zfill(6) # pad tract to 6 digits if needed
+)
+
+# block group ######################################################################################
+state_counties = {
+    "36": ["005", "047", "061", "081", "085"],  # NY counties (NYC)
+    "06": ["037", "075"],                       # CA counties (LA, SF)
+}
+block_group_dfs = []
+for state_fips, counties in state_counties.items():
+    for county in counties:
+        var_dfs = []
+        for var_str in var_groups:
+            params = {
+                "get": f"NAME,{var_str}",
+                "for": "block group:*",
+                "in": f"state:{state_fips} county:{county}",
+                "key": census_api_key
+            }
+            response = requests.get(ACS_URL, params=params, timeout=20)
+
+            if response.status_code != 200:
+                print(f"Error {response.status_code}: {response.text}")
+            else:
+                data = response.json()
+                data_df = pd.DataFrame(data[1:], columns=data[0])
+                var_dfs.append(data_df)
+
+        merged_df = var_dfs[0]
+        for df in var_dfs[1:]:
+            merged_df = merged_df.merge(
+                df,
+                how='outer',
+                on=['NAME', 'state', 'county', 'tract', 'block group']
+            )
+
+        block_group_dfs.append(merged_df)
 
 # Combine all block group dataframes
 c_block_group = pd.concat(block_group_dfs, ignore_index=True)
@@ -170,7 +179,7 @@ c_block_group['GEOID'] = (
 ############################################# CLEAN UP #############################################
 ####################################################################################################
 # Join ZCTA to DMA and create c_dma
-metrics = list(variables_to_get) + more_variables_to_get
+metrics = list(var_to_get_B01001) + var_to_get_misc
 
 c_zcta = c_zcta.rename(columns={'zip code tabulation area': 'zcta'})
 
@@ -181,6 +190,7 @@ c_dma = c_zcta_dma.groupby('dma', as_index=False, dropna=False).sum(numeric_only
 
 # Rename columns for clarity
 cols_to_rename = {
+    # B01001: Sex by Age
     'B01001_001E': 'Pop - Total'
     ,'B01001_002E': 'Pop - Male'
     ,'B01001_003E': 'Pop - Male Under 5 years'
@@ -230,6 +240,41 @@ cols_to_rename = {
     ,'B01001_047E': 'Pop - Female 75 to 79 years'
     ,'B01001_048E': 'Pop - Female 80 to 84 years'
     ,'B01001_049E': 'Pop - Female 85 years and over'
+
+    # B01001A: Sex by Age (White Alone)
+    ,'B01001A_001E': 'Pop - Total (White Alone)'
+    ,'B01001A_002E': 'Pop - Male (White Alone)'
+    ,'B01001A_003E': 'Pop - Male Under 5 years (White Alone)'
+    ,'B01001A_004E': 'Pop - Male 5 to 9 years (White Alone)'
+    ,'B01001A_005E': 'Pop - Male 10 to 14 years (White Alone)'
+    ,'B01001A_006E': 'Pop - Male 15 to 17 years (White Alone)'
+    ,'B01001A_007E': 'Pop - Male 18 and 19 years (White Alone)'
+    ,'B01001A_008E': 'Pop - Male 20 to 24 years (White Alone)'
+    ,'B01001A_009E': 'Pop - Male 25 to 29 years (White Alone)'
+    ,'B01001A_010E': 'Pop - Male 30 to 34 years (White Alone)'
+    ,'B01001A_011E': 'Pop - Male 35 to 44 years (White Alone)'
+    ,'B01001A_013E': 'Pop - Male 55 to 64 years (White Alone)'
+    ,'B01001A_012E': 'Pop - Male 45 to 54 years (White Alone)'
+    ,'B01001A_014E': 'Pop - Male 65 to 74 years (White Alone)'
+    ,'B01001A_015E': 'Pop - Male 75 to 84 years (White Alone)'
+    ,'B01001A_016E': 'Pop - Male 85 years and over (White Alone)'
+    ,'B01001A_017E': 'Pop - Female (White Alone)'
+    ,'B01001A_018E': 'Pop - Female Under 5 years (White Alone)'
+    ,'B01001A_019E': 'Pop - Female 5 to 9 years (White Alone)'
+    ,'B01001A_020E': 'Pop - Female 10 to 14 years (White Alone)'
+    ,'B01001A_021E': 'Pop - Female 15 to 17 years (White Alone)'
+    ,'B01001A_022E': 'Pop - Female 18 and 19 years (White Alone)'
+    ,'B01001A_024E': 'Pop - Female 25 to 29 years (White Alone)'
+    ,'B01001A_023E': 'Pop - Female 20 to 24 years (White Alone)'
+    ,'B01001A_025E': 'Pop - Female 30 to 34 years (White Alone)'
+    ,'B01001A_026E': 'Pop - Female 35 to 44 years (White Alone)'
+    ,'B01001A_027E': 'Pop - Female 45 to 54 years (White Alone)'
+    ,'B01001A_028E': 'Pop - Female 55 to 64 years (White Alone)'
+    ,'B01001A_029E': 'Pop - Female 65 to 74 years (White Alone)'
+    ,'B01001A_030E': 'Pop - Female 75 to 84 years (White Alone)'
+    ,'B01001A_031E': 'Pop - Female 85 years and over (White Alone)'
+
+    # Miscellaneous variables
     ,'B11012_001E': 'N Census Households'
     ,'B19001_014E': 'N Census Household Income 100-124'
     ,'B19001_015E': 'N Census Household Income 125-149'
@@ -262,16 +307,16 @@ decade_labels = [
     '80 years and over'
 ]
 
-pop_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_block_group]
+pop_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_tract, c_block_group]
 for df in pop_dfs:
     df[metrics] = df[metrics].astype(float)
     df.rename(columns=cols_to_rename, inplace=True)
 
-    df['mf_ratio'] = df['Pop - Male'] / df['Pop - Female']
-    df['mf_ratio_log'] = np.log1p(df['mf_ratio'])  # easier to visualize extreme values
+    df['pct_male'] = df['Pop - Male'] / df['Pop - Total']
     df['Household Income 200+_ratio'] = (
         df['N Census Household Income 200+'] / df['N Census Households']
     )
+    # df['pct_white'] = df['Pop - Total (White Alone)'] / df['Pop - Total']
     for gender in ['Male', 'Female']:
         for decade, cols in decade_aggregations:
             colnames = [f'Pop - {gender} {c}' for c in cols]
@@ -280,9 +325,8 @@ for df in pop_dfs:
     for decade in decade_labels:
         male_col = f'Pop - Male {decade}'
         female_col = f'Pop - Female {decade}'
-        ratio_col = f'mf_ratio_{decade}'
-        df[ratio_col] = df[male_col] / df[female_col]
-        df[f'{ratio_col}_log'] = np.log1p(df[ratio_col])
+        ratio_col = f'pct_male_{decade}'
+        df[ratio_col] = df[male_col] / (df[male_col] + df[female_col])
 
     df.replace([np.inf, -np.inf, -666666666], np.nan, inplace=True)
 
@@ -291,13 +335,15 @@ for df in pop_dfs:
 # Could try to do weighted avg or something instead...
 c_dma = c_dma.drop(columns='Median Census Household Income 25-44')
 
-
 ####################################################################################################
 ############################################### SAVE ###############################################
 ####################################################################################################
 # Save csv (mostly static data so just overwrite)
+state_name.to_csv("state_name.csv", index=False)
+
 c_state.to_csv("c_state.csv", index=False)
 c_dma.to_csv("c_dma.csv", index=False)
 c_county_state.to_csv("c_county_state.csv", index=False)
 c_zcta_dma.to_csv("c_zcta_dma.csv", index=False)
+c_tract.to_csv("c_tract.csv", index=False)
 c_block_group.to_csv("c_block_group.csv", index=False)
