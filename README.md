@@ -1,11 +1,14 @@
 # census
-1. Download shape files
+1. Build zcta_to_dma mapping file
+    - run build_zcta_to_dma.py
+
+2. Download shape files
     - run download_shape_files.py 
 
-2. Download ACS attributes
+3. Download ACS attributes
     - run download.py
 
-3. View maps
+4. View maps
     - run dash_app.py
 
 \
