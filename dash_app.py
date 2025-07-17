@@ -19,7 +19,7 @@ block_group_geom_raw = gpd.read_file("block_group_geom.shp")
 
 zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={'zcta':object})
 
-dma_polygons_raw = gpd.read_file('dma_polygons.geojson') # https://team.carto.com/u/andrew/tables/dma_master_polygons/public
+dma_polygons_raw = gpd.read_file('dma_polygons.geojson')
 dma_polygons_raw['cartodb_id'] = dma_polygons_raw['cartodb_id'].astype(str)
 dma_polygons_raw['dma_code'] = dma_polygons_raw['dma_code'].astype(str)
 

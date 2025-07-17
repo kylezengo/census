@@ -4,7 +4,7 @@ import pandas as pd
 
 # Load files
 zip_to_zcta_raw = pd.read_excel(
-    "ZIPCodetoZCTACrosswalk2021UDS.xlsx", # https://udsmapper.org/zip-code-to-zcta-crosswalk/
+    "ZIPCodetoZCTACrosswalk2021UDS.xlsx",
     dtype = {'ZIP_CODE':object,'ZCTA':object}
 )
 zip_to_dma_raw = pd.read_csv("zip_to_dma.csv", dtype = {'zip_code':object, 'dma_code':object})
