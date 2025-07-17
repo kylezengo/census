@@ -48,13 +48,18 @@ county_geom = county_geom_raw[['GEOID', 'geometry']]
 county_geom = county_geom.set_index('GEOID')
 county_geom_json = county_geom.to_json()
 
-zcta_geom = zcta_geom_raw.merge(zcta_to_dma[['zcta','dma']], how="left", left_on='ZCTA5CE20', right_on='zcta')
+zcta_geom = zcta_geom_raw.merge(
+    zcta_to_dma[['zcta','dma']],
+    how="left",
+    left_on='ZCTA5CE20',
+    right_on='zcta'
+)
 
 tract_geom = tract_geom_raw[['GEOID', 'geometry']]
 
 block_group_geom = block_group_geom_raw[['GEOID', 'geometry']]
 
-# Create a indexed versions of the dataframes to lookup values
+# Create indexed versions of the dataframes to lookup values
 c_state_indexed = c_state.set_index('state')
 c_dma_indexed = c_dma.set_index('dma')
 c_county_state_indexed = c_county_state.set_index('GEOID')
@@ -342,7 +347,6 @@ def generate_county_map(selected_metrics):
             overlay=False
         ).add_to(m)
 
-        # Loop through the geojson object and add a new property (i) and assign a value from dataframe
         my_geos = list(c_county_state['GEOID'])
         for s in my_chp.geojson.data['features']:
             if s['id'] in my_geos:
@@ -357,7 +361,6 @@ def generate_county_map(selected_metrics):
                 county_name = s['id']
             s['properties']['County'] = county_name
             s['properties'][i] = val
-        # add a tooltip/hover to the choropleth's geojson
         folium.GeoJsonTooltip(['County',i]).add_to(my_chp.geojson)
 
     folium.TileLayer(tiles='cartodb positron',control=False).add_to(m)
@@ -399,7 +402,6 @@ def generate_dma_map(selected_metrics):
             overlay=False
         ).add_to(m)
 
-        # Loop through the geojson object and add a new property (i) and assign a value from dataframe
         my_geos = list(c_dma['dma'])
         for s in my_chp.geojson.data['features']:
             if s['id'] in my_geos:
@@ -408,7 +410,6 @@ def generate_dma_map(selected_metrics):
                 val = 0
             s['properties']['DMA'] = s['id']
             s['properties'][i] = val
-        # add a tooltip/hover to the choropleth's geojson
         folium.GeoJsonTooltip(['DMA',i]).add_to(my_chp.geojson)
 
     folium.TileLayer(tiles='cartodb positron',control=False).add_to(m)
@@ -462,7 +463,6 @@ def generate_zcta_map(selected_metrics, selected_dma, pop_min=None):
             overlay=False
         ).add_to(m)
 
-        # Loop through the geojson object and add a new property (i) and assign a value from dataframe
         my_geos = list(c_zcta_dma_select['ZCTA5CE20'])
         for s in my_chp.geojson.data['features']:
             if s['id'] in my_geos:
@@ -471,7 +471,6 @@ def generate_zcta_map(selected_metrics, selected_dma, pop_min=None):
                 val = 0
             s['properties']['ZCTA'] = s['id']
             s['properties'][i] = val
-        # add a tooltip/hover to the choropleth's geojson
         folium.GeoJsonTooltip(['ZCTA',i]).add_to(my_chp.geojson)
 
     folium.TileLayer(tiles='cartodb positron',control=False).add_to(m)
@@ -528,7 +527,6 @@ def generate_tract_map(selected_metrics, selected_state, pop_min=None, exclude=N
             overlay=False
         ).add_to(m)
 
-        # Loop through the geojson object and add a new property (i) and assign a value from dataframe
         my_geos = list(c_tract_select['GEOID'])
         for s in my_chp.geojson.data['features']:
             if s['id'] in my_geos:
@@ -537,7 +535,6 @@ def generate_tract_map(selected_metrics, selected_state, pop_min=None, exclude=N
                 val = 0
             s['properties']['Tract'] = s['id']
             s['properties'][i] = val
-        # add a tooltip/hover to the choropleth's geojson
         folium.GeoJsonTooltip(['Tract',i]).add_to(my_chp.geojson)
 
     folium.TileLayer(tiles='cartodb positron',control=False).add_to(m)
@@ -548,9 +545,6 @@ def generate_tract_map(selected_metrics, selected_state, pop_min=None, exclude=N
 def generate_block_group_map(selected_metrics, selected_city, pop_min=None, exclude=None):
     """
     Build folium map with user selected metrics
-    360470018012 Prison
-    360810426001 ?
-    360050001001 Prison (Rikers)
     """
     if selected_city == 'San Francisco':
         sf = ['06075'] # SF
@@ -608,7 +602,6 @@ def generate_block_group_map(selected_metrics, selected_city, pop_min=None, excl
             overlay=False
         ).add_to(m)
 
-        # Loop through the geojson object and add a new property (i) and assign a value from dataframe
         my_geos = list(c_block_group_select['GEOID'])
         for s in my_chp.geojson.data['features']:
             if s['id'] in my_geos:
@@ -617,7 +610,6 @@ def generate_block_group_map(selected_metrics, selected_city, pop_min=None, excl
                 val = 0
             s['properties']['Block Group'] = s['id']
             s['properties'][i] = val
-        # add a tooltip/hover to the choropleth's geojson
         folium.GeoJsonTooltip(['Block Group',i]).add_to(my_chp.geojson)
 
     folium.TileLayer(tiles='cartodb positron',control=False).add_to(m)
