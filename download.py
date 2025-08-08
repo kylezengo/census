@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
-ACS_URL = "https://api.census.gov/data/2022/acs/acs5"
+ACS_URL = "https://api.census.gov/data/2022/acs/acs5" # note year 2022
 
 # Authentication
 load_dotenv()
