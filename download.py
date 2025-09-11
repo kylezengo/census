@@ -28,14 +28,6 @@ variables = pd.DataFrame.from_dict(variables_json["variables"], orient="index")
 variables = variables.reset_index(names='variable')
 
 # Get data for variables
-# B01001: Sex by Age
-# B01001A: Sex by Age (White Alone)
-var_B01001 = list(variables.loc[variables["group"] == "B01001",'variable'])
-var_B01001_str = ",".join(var_B01001) # convert to comma-separated string for API call
-
-var_B01001A = list(variables.loc[variables["group"] == "B01001A",'variable'])
-var_B01001A_str = ",".join(var_B01001A)
-
 var_misc = [
     "B11012_001E", # N Census Households
     "B19001_014E", # N Census Household Income 100-124
@@ -44,43 +36,59 @@ var_misc = [
     "B19001_017E", # N Census Household Income 200+
     "B19049_003E"  # Median Census Household Income 25-44
 ]
-var_misc_str = ",".join(var_misc)
 
-var_groups = [var_B01001_str, var_B01001A_str, var_misc_str]
+groups = [
+    "B01001",  # Sex by Age
+    "B01001A", # Sex by Age (White Alone)
+    "misc"
+]
+
+var_groups = {}
+metrics = []
+for g in groups:
+    if g == "misc":
+        var_groups[g] = ",".join(var_misc)
+
+        metrics.extend(var_misc)
+    else:
+        vars_list = variables.loc[variables["group"] == g, "variable"].tolist()
+        var_groups[g] = ",".join(vars_list) # convert to comma-separated string for API call
+
+        metrics.extend(vars_list)
 
 # Make API calls for each geography level
-to_get =["state", "county", "zip code tabulation area"]
+geo_level =["state", "county", "zip code tabulation area"]
 dfs = {}
-for i in to_get:
+for level in geo_level:
     # Calls are seperated because I can only request 50 variables at once
     var_dfs = []
-    for var_str in var_groups:
+    for var_str in var_groups.values():
         params = {
             "get": f"NAME,{var_str}",
-            "for": f"{i}:*",
+            "for": f"{level}:*",
             "key": census_api_key
         }
         response = requests.get(ACS_URL, params=params, timeout=20)
 
-        if response.status_code != 200:            
+        if response.status_code != 200:
             print(f"Error {response.status_code}: {response.text}")
         else:
             data = response.json()
             data_df = pd.DataFrame(data[1:], columns=data[0])
             var_dfs.append(data_df)
 
-    if i == "zip code tabulation area":
+    if level == "zip code tabulation area":
         merged_df = var_dfs[0].drop(columns='NAME')
         for df in var_dfs[1:]:
             df = df.drop(columns='NAME')
-            merged_df = merged_df.merge(df, how='outer', on=i)
+            merged_df = merged_df.merge(df, how='outer', on=level)
     else:
         merged_df = var_dfs[0]
         for df in var_dfs[1:]:
             df = df.drop(columns=['state','county'], errors='ignore')
             merged_df = merged_df.merge(df, how='outer', on="NAME")
 
-    dfs[i] = merged_df
+    dfs[level] = merged_df
 
 c_state = dfs['state']
 c_state = c_state.drop(columns='state')
@@ -99,7 +107,7 @@ states = state_name['state'].unique()
 tract_dfs = []
 for state_fips in states:
     var_dfs = []
-    for var_str in var_groups:
+    for var_str in var_groups.values():
         params = {
             "get": f"NAME,{var_str}",
             "for": "tract:*",
@@ -139,7 +147,7 @@ block_group_dfs = []
 for state_fips, counties in state_counties.items():
     for county in counties:
         var_dfs = []
-        for var_str in var_groups:
+        for var_str in var_groups.values():
             params = {
                 "get": f"NAME,{var_str}",
                 "for": "block group:*",
@@ -179,7 +187,7 @@ c_block_group['GEOID'] = (
 ############################################# CLEAN UP #############################################
 ####################################################################################################
 # Join ZCTA to DMA and create c_dma
-metrics = var_B01001 + var_B01001A + var_misc
+# metrics = sum(var_groups.values(), [])
 
 c_zcta = c_zcta.rename(columns={'zip code tabulation area': 'zcta'})
 
