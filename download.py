@@ -187,8 +187,6 @@ c_block_group['GEOID'] = (
 ############################################# CLEAN UP #############################################
 ####################################################################################################
 # Join ZCTA to DMA and create c_dma
-# metrics = sum(var_groups.values(), [])
-
 c_zcta = c_zcta.rename(columns={'zip code tabulation area': 'zcta'})
 
 c_zcta_dma = c_zcta.merge(zcta_to_dma, how='left', on='zcta')
