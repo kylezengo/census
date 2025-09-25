@@ -39,9 +39,23 @@ var_misc = [
 
 groups = [
     "B01001",  # Sex by Age
-    "B01001A", # Sex by Age (White Alone)
+    # "B01001A", # Sex by Age (White Alone)
+    # 'B01001B', # Sex by Age (Black or African American Alone)
+    # 'B01001C', # Sex by Age (American Indian and Alaska Native Alone)
+    # 'B01001D', # Sex by Age (Asian Alone)
+    # 'B01001E', # Sex by Age (Native Hawaiian and Other Pacific Islander Alone)
+    # 'B01001F', # Sex by Age (Some Other Race Alone)
+    # 'B01001G', # Sex by Age (Two or More Races)
+    # 'B01001H', # Sex by Age (White Alone, Not Hispanic or Latino)
+    # 'B01001I', # Sex by Age (Hispanic or Latino)
     "misc"
 ]
+
+
+
+
+
+
 
 var_groups = {}
 metrics = []
