@@ -29,12 +29,12 @@ variables = variables.reset_index(names='variable')
 
 # Get data for variables
 var_misc = [
-    "B11012_001E", # N Census Households
-    "B19001_014E", # N Census Household Income 100-124
-    "B19001_015E", # N Census Household Income 125-149
-    "B19001_016E", # N Census Household Income 150-199
-    "B19001_017E", # N Census Household Income 200+
-    "B19049_003E"  # Median Census Household Income 25-44
+    "B11012_001E", # N Households
+    "B19001_014E", # N Household Income 100-124
+    "B19001_015E", # N Household Income 125-149
+    "B19001_016E", # N Household Income 150-199
+    "B19001_017E", # N Household Income 200+
+    "B19049_003E"  # Median Household Income 25-44
 ]
 
 groups = [
@@ -85,33 +85,15 @@ for level in geo_level:
             data_df = pd.DataFrame(data[1:], columns=data[0])
             var_dfs.append(data_df)
 
-    if level == "zip code tabulation area":
-        merged_df = var_dfs[0].drop(columns='NAME')
-        for df in var_dfs[1:]:
-            df = df.drop(columns='NAME')
-            merged_df = merged_df.merge(df, how='outer', on=level)
-    else:
-        merged_df = var_dfs[0]
-        for df in var_dfs[1:]:
-            df = df.drop(columns=['state','county'], errors='ignore')
-            merged_df = merged_df.merge(df, how='outer', on="NAME")
+    merged_df = var_dfs[0]
+    for df in var_dfs[1:]:
+        df = df.drop(columns=geo_level, errors='ignore')
+        merged_df = merged_df.merge(df, how='outer', on="NAME")
 
     dfs[level] = merged_df
 
-c_state = dfs['state']
-c_state = c_state.drop(columns='state')
-c_state = c_state.rename(columns={'NAME': 'state'})
-
-c_county = dfs['county']
-
-c_zcta = dfs['zip code tabulation area']
-
-state_name = dfs['state'][['state','NAME']].rename(columns={'NAME': 'state_NAME'})
-c_county_state = c_county.merge(state_name, how='left', on='state')
-c_county_state['GEOID'] = c_county_state['state'] + c_county_state['county']
-
 # tract ############################################################################################
-states = state_name['state'].unique()
+states = dfs['state']['state'].unique()
 tract_dfs = []
 for state_fips in states:
     var_dfs = []
@@ -135,16 +117,9 @@ for state_fips in states:
     for df in var_dfs[1:]:
         merged_df = merged_df.merge(df, how='outer', on=['NAME', 'state', 'county', 'tract'])
 
-    tract_dfs.append(merged_df)
+    tract_dfs.append(merged_df) # all variables for one state
 
-# Combine all tract dataframes
-c_tract = pd.concat(tract_dfs, ignore_index=True)
-
-c_tract['GEOID'] = (
-    c_tract['state'] +
-    c_tract['county'] +
-    c_tract['tract'].str.zfill(6) # pad tract to 6 digits if needed
-)
+dfs["tract"] = pd.concat(tract_dfs, ignore_index=True)
 
 # block group ######################################################################################
 state_counties = {
@@ -181,13 +156,37 @@ for state_fips, counties in state_counties.items():
 
         block_group_dfs.append(merged_df)
 
-# Combine all block group dataframes
-c_block_group = pd.concat(block_group_dfs, ignore_index=True)
+dfs["block group"] = pd.concat(block_group_dfs, ignore_index=True)
+
+# build data frames ################################################################################
+c_state = dfs['state']
+c_state = c_state.drop(columns='state')
+c_state = c_state.rename(columns={'NAME': 'state'})
+
+c_county = dfs['county']
+
+c_zcta = dfs['zip code tabulation area']
+
+state_name = dfs['state'][['state','NAME']].rename(columns={'NAME': 'state_NAME'})
+c_county_state = c_county.merge(state_name, how='left', on='state')
+c_county_state['GEOID'] = c_county_state['state'] + c_county_state['county']
+
+#
+c_tract = dfs["tract"]
+
+c_tract['GEOID'] = (
+    c_tract['state'] +
+    c_tract['county'] +
+    c_tract['tract'].str.zfill(6) # pad tract to 6 digits if needed
+)
+
+#
+c_block_group = dfs["block group"]
 
 c_block_group['GEOID'] = (
     c_block_group['state'] +
     c_block_group['county'] +
-    c_block_group['tract'].str.zfill(6) +  # pad tract to 6 digits if needed
+    c_block_group['tract'].str.zfill(6) +
     c_block_group['block group']
 )
 
@@ -203,67 +202,30 @@ c_zcta_dma[metrics] = c_zcta_dma[metrics].astype(float)
 c_dma = c_zcta_dma.groupby('dma', as_index=False, dropna=False).sum(numeric_only=True)
 
 # Rename columns for clarity
-cols_to_rename = {
-    # B01001: Sex by Age
-    'B01001_001E': 'Pop - Total'
-    ,'B01001_002E': 'Pop - Male'
-    ,'B01001_003E': 'Pop - Male Under 5 years'
-    ,'B01001_004E': 'Pop - Male 5 to 9 years'
-    ,'B01001_005E': 'Pop - Male 10 to 14 years'
-    ,'B01001_006E': 'Pop - Male 15 to 17 years'
-    ,'B01001_007E': 'Pop - Male 18 and 19 years'
-    ,'B01001_008E': 'Pop - Male 20 years'
-    ,'B01001_009E': 'Pop - Male 21 years'
-    ,'B01001_010E': 'Pop - Male 22 to 24 years'
-    ,'B01001_011E': 'Pop - Male 25 to 29 years'
-    ,'B01001_012E': 'Pop - Male 30 to 34 years'
-    ,'B01001_013E': 'Pop - Male 35 to 39 years'
-    ,'B01001_014E': 'Pop - Male 40 to 44 years'
-    ,'B01001_015E': 'Pop - Male 45 to 49 years'
-    ,'B01001_016E': 'Pop - Male 50 to 54 years'
-    ,'B01001_017E': 'Pop - Male 55 to 59 years'
-    ,'B01001_018E': 'Pop - Male 60 and 61 years'
-    ,'B01001_019E': 'Pop - Male 62 to 64 years'
-    ,'B01001_020E': 'Pop - Male 65 and 66 years'
-    ,'B01001_021E': 'Pop - Male 67 to 69 years'
-    ,'B01001_022E': 'Pop - Male 70 to 74 years'
-    ,'B01001_023E': 'Pop - Male 75 to 79 years'
-    ,'B01001_024E': 'Pop - Male 80 to 84 years'
-    ,'B01001_025E': 'Pop - Male 85 years and over'
-    ,'B01001_026E': 'Pop - Female'
-    ,'B01001_027E': 'Pop - Female Under 5 years'
-    ,'B01001_028E': 'Pop - Female 5 to 9 years'
-    ,'B01001_029E': 'Pop - Female 10 to 14 years'
-    ,'B01001_030E': 'Pop - Female 15 to 17 years'
-    ,'B01001_031E': 'Pop - Female 18 and 19 years'
-    ,'B01001_032E': 'Pop - Female 20 years'
-    ,'B01001_033E': 'Pop - Female 21 years'
-    ,'B01001_034E': 'Pop - Female 22 to 24 years'
-    ,'B01001_035E': 'Pop - Female 25 to 29 years'
-    ,'B01001_036E': 'Pop - Female 30 to 34 years'
-    ,'B01001_037E': 'Pop - Female 35 to 39 years'
-    ,'B01001_038E': 'Pop - Female 40 to 44 years'
-    ,'B01001_039E': 'Pop - Female 45 to 49 years'
-    ,'B01001_040E': 'Pop - Female 50 to 54 years'
-    ,'B01001_041E': 'Pop - Female 55 to 59 years'
-    ,'B01001_042E': 'Pop - Female 60 and 61 years'
-    ,'B01001_043E': 'Pop - Female 62 to 64 years'
-    ,'B01001_044E': 'Pop - Female 65 and 66 years'
-    ,'B01001_045E': 'Pop - Female 67 to 69 years'
-    ,'B01001_046E': 'Pop - Female 70 to 74 years'
-    ,'B01001_047E': 'Pop - Female 75 to 79 years'
-    ,'B01001_048E': 'Pop - Female 80 to 84 years'
-    ,'B01001_049E': 'Pop - Female 85 years and over'
+variables['concept_label'] = variables['concept'] + " - " + variables['label']
+variables['concept_label_clean'] = variables["concept_label"].str.replace(
+    "Sex by Age - Estimate!!Total:",
+    "Pop"
+)
+variables['concept_label_clean'] = variables["concept_label_clean"].str.replace(
+    ("Household Income in the Past 12 Months (in 2022 Inflation-Adjusted Dollars) - "
+     "Estimate!!Total:"),
+    "N Household Income"
+)
+variables['concept_label_clean'] = variables["concept_label_clean"].str.replace(
+    ("Median Household Income in the Past 12 Months (in 2022 Inflation-Adjusted Dollars) by "
+    "Age of Householder - Estimate!!Median household income in the past 12 months (in 2022 "
+    "inflation-adjusted dollars) --!!Total:!!Householder"),
+    "Median Household Income in the Past 12 Months (in 2022 Dollars)"
+)
+variables['concept_label_clean'] = variables["concept_label_clean"].str.replace("!!", " ")
+variables['concept_label_clean'] = variables["concept_label_clean"].str.replace(",", "")
+variables['concept_label_clean'] = variables["concept_label_clean"].str.replace(":", "")
+variables['concept_label_clean'] = variables["concept_label_clean"].str.replace("$", "")
 
-    # Miscellaneous variables
-    ,'B11012_001E': 'N Census Households'
-    ,'B19001_014E': 'N Census Household Income 100-124'
-    ,'B19001_015E': 'N Census Household Income 125-149'
-    ,'B19001_016E': 'N Census Household Income 150-199'
-    ,'B19001_017E': 'N Census Household Income 200+'
-    ,'B19049_003E': 'Median Census Household Income 25-44'
-}
+concept_label_map = dict(zip(variables['variable'], variables['concept_label_clean']))
 
+#
 decade_aggregations = [
     ('Under 10 years', ['Under 5 years', '5 to 9 years']),
     ('10 to 19 years', ['10 to 14 years', '15 to 17 years', '18 and 19 years']),
@@ -291,20 +253,20 @@ decade_labels = [
 pop_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_tract, c_block_group]
 for df in pop_dfs:
     df[metrics] = df[metrics].astype(float)
-    df.rename(columns=cols_to_rename, inplace=True)
+    df.rename(columns=concept_label_map, inplace=True)
 
-    df['pct_male'] = df['Pop - Male'] / df['Pop - Total']
+    df['pct_male'] = df['Pop Male'] / df['Pop']
     df['Household Income 200+_ratio'] = (
-        df['N Census Household Income 200+'] / df['N Census Households']
+        df['N Household Income 200000 or more'] / df['Households by Type - Estimate Total']
     )
     for gender in ['Male', 'Female']:
         for decade, cols in decade_aggregations:
-            colnames = [f'Pop - {gender} {c}' for c in cols]
-            new_col = f'Pop - {gender} {decade}'
+            colnames = [f'Pop {gender} {c}' for c in cols]
+            new_col = f'Pop {gender} {decade}'
             df[new_col] = df[colnames].sum(axis=1)
     for decade in decade_labels:
-        male_col = f'Pop - Male {decade}'
-        female_col = f'Pop - Female {decade}'
+        male_col = f'Pop Male {decade}'
+        female_col = f'Pop Female {decade}'
         ratio_col = f'pct_male_{decade}'
         df[ratio_col] = df[male_col] / (df[male_col] + df[female_col])
 
@@ -313,7 +275,9 @@ for df in pop_dfs:
 # Drop the 'Median Census Household Income 25-44' column from c_dma
 # This column has been summed over ZCTAs so it is now invalid
 # Could try to do weighted avg or something instead...
-c_dma = c_dma.drop(columns='Median Census Household Income 25-44')
+c_dma = c_dma.drop(
+    columns='Median Household Income in the Past 12 Months (in 2022 Dollars) 25 to 44 years'
+)
 
 ####################################################################################################
 ############################################### SAVE ###############################################

@@ -5,6 +5,8 @@ import geopandas as gpd
 import pandas as pd
 from dash import Dash, html, dcc, Input, Output
 
+DEFAULT_VAR = "Pop"
+
 MALE_COLOR = "Blues"
 FEMALE_COLOR = "Reds"
 MF_COLOR = "RdBu"
@@ -105,7 +107,7 @@ app.layout = html.Div([
                 dcc.Dropdown(
                     id='state-metric-selector',
                     options=zcta_metric_cols,
-                    value=['Pop - Total'],
+                    value=[DEFAULT_VAR],
                     multi=True,
                     placeholder="Select metrics...",
                     style={'fontFamily': 'Arial'}
@@ -120,7 +122,7 @@ app.layout = html.Div([
                 dcc.Dropdown(
                     id='dma-metric-selector',
                     options=dma_metric_cols,
-                    value=['Pop - Total'],
+                    value=[DEFAULT_VAR],
                     multi=True,
                     placeholder="Select metrics...",
                     style={'fontFamily': 'Arial'}
@@ -135,7 +137,7 @@ app.layout = html.Div([
                 dcc.Dropdown(
                     id='county-metric-selector',
                     options=county_metric_cols,
-                    value=['Pop - Total'],
+                    value=[DEFAULT_VAR],
                     multi=True,
                     placeholder="Select metrics...",
                     style={'fontFamily': 'Arial'}
@@ -151,7 +153,7 @@ app.layout = html.Div([
                     dcc.Dropdown(
                         id='zcta-metric-selector',
                         options=zcta_metric_cols,
-                        value=['Pop - Total'],
+                        value=[DEFAULT_VAR],
                         multi=True,
                         placeholder="Select metrics..."
                     ),
@@ -185,7 +187,7 @@ app.layout = html.Div([
                     dcc.Dropdown(
                         id='tract-metric-selector',
                         options=tract_metric_cols,
-                        value=['Pop - Total'],
+                        value=[DEFAULT_VAR],
                         multi=True,
                         placeholder="Select metrics...",
                     ),
@@ -226,7 +228,7 @@ app.layout = html.Div([
                     dcc.Dropdown(
                         id='block-group-metric-selector',
                         options=block_group_metric_cols,
-                        value=['Pop - Total'],
+                        value=[DEFAULT_VAR],
                         multi=True,
                         placeholder="Select metrics...",
                     ),
@@ -429,7 +431,7 @@ def generate_zcta_map(selected_metrics, selected_dma, pop_min=None):
     c_zcta_dma_select = c_zcta_dma[c_zcta_dma['dma']==selected_dma].reset_index(drop=True)
     c_zcta_dma_select = c_zcta_dma_select.rename(columns={'zcta': 'ZCTA5CE20'})
 
-    c_zcta_dma_select = c_zcta_dma_select.loc[c_zcta_dma_select['Pop - Total'] >= (pop_min or 0)]
+    c_zcta_dma_select = c_zcta_dma_select.loc[c_zcta_dma_select[DEFAULT_VAR] >= (pop_min or 0)]
 
     c_zcta_dma_select_indexed = c_zcta_dma_select.set_index('ZCTA5CE20')
 
@@ -491,7 +493,7 @@ def generate_tract_map(selected_metrics, selected_state, pop_min=None, exclude=N
     tract_geom_select_json = tract_geom_select.to_json()
 
     if pop_min is not None:
-        c_tract_select = c_tract_select.loc[c_tract_select['Pop - Total'] >= pop_min]
+        c_tract_select = c_tract_select.loc[c_tract_select[DEFAULT_VAR] >= pop_min]
     if exclude:
         c_tract_select = c_tract_select.loc[~c_tract_select['GEOID'].isin(exclude)]
 
@@ -566,7 +568,7 @@ def generate_block_group_map(selected_metrics, selected_city, pop_min=None, excl
     block_group_geom_select_json = block_group_geom_select.to_json()
 
     if pop_min is not None:
-        c_block_group_select = c_block_group_select.loc[c_block_group_select['Pop - Total'] >= pop_min]
+        c_block_group_select = c_block_group_select.loc[c_block_group_select[DEFAULT_VAR] >= pop_min]
     if exclude:
         c_block_group_select = c_block_group_select.loc[~c_block_group_select['GEOID'].isin(exclude)]
 
