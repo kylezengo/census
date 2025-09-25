@@ -51,12 +51,6 @@ groups = [
     "misc"
 ]
 
-
-
-
-
-
-
 var_groups = {}
 metrics = []
 for g in groups:
@@ -261,39 +255,6 @@ cols_to_rename = {
     ,'B01001_048E': 'Pop - Female 80 to 84 years'
     ,'B01001_049E': 'Pop - Female 85 years and over'
 
-    # B01001A: Sex by Age (White Alone)
-    ,'B01001A_001E': 'Pop - Total (White Alone)'
-    ,'B01001A_002E': 'Pop - Male (White Alone)'
-    ,'B01001A_003E': 'Pop - Male Under 5 years (White Alone)'
-    ,'B01001A_004E': 'Pop - Male 5 to 9 years (White Alone)'
-    ,'B01001A_005E': 'Pop - Male 10 to 14 years (White Alone)'
-    ,'B01001A_006E': 'Pop - Male 15 to 17 years (White Alone)'
-    ,'B01001A_007E': 'Pop - Male 18 and 19 years (White Alone)'
-    ,'B01001A_008E': 'Pop - Male 20 to 24 years (White Alone)'
-    ,'B01001A_009E': 'Pop - Male 25 to 29 years (White Alone)'
-    ,'B01001A_010E': 'Pop - Male 30 to 34 years (White Alone)'
-    ,'B01001A_011E': 'Pop - Male 35 to 44 years (White Alone)'
-    ,'B01001A_013E': 'Pop - Male 55 to 64 years (White Alone)'
-    ,'B01001A_012E': 'Pop - Male 45 to 54 years (White Alone)'
-    ,'B01001A_014E': 'Pop - Male 65 to 74 years (White Alone)'
-    ,'B01001A_015E': 'Pop - Male 75 to 84 years (White Alone)'
-    ,'B01001A_016E': 'Pop - Male 85 years and over (White Alone)'
-    ,'B01001A_017E': 'Pop - Female (White Alone)'
-    ,'B01001A_018E': 'Pop - Female Under 5 years (White Alone)'
-    ,'B01001A_019E': 'Pop - Female 5 to 9 years (White Alone)'
-    ,'B01001A_020E': 'Pop - Female 10 to 14 years (White Alone)'
-    ,'B01001A_021E': 'Pop - Female 15 to 17 years (White Alone)'
-    ,'B01001A_022E': 'Pop - Female 18 and 19 years (White Alone)'
-    ,'B01001A_024E': 'Pop - Female 25 to 29 years (White Alone)'
-    ,'B01001A_023E': 'Pop - Female 20 to 24 years (White Alone)'
-    ,'B01001A_025E': 'Pop - Female 30 to 34 years (White Alone)'
-    ,'B01001A_026E': 'Pop - Female 35 to 44 years (White Alone)'
-    ,'B01001A_027E': 'Pop - Female 45 to 54 years (White Alone)'
-    ,'B01001A_028E': 'Pop - Female 55 to 64 years (White Alone)'
-    ,'B01001A_029E': 'Pop - Female 65 to 74 years (White Alone)'
-    ,'B01001A_030E': 'Pop - Female 75 to 84 years (White Alone)'
-    ,'B01001A_031E': 'Pop - Female 85 years and over (White Alone)'
-
     # Miscellaneous variables
     ,'B11012_001E': 'N Census Households'
     ,'B19001_014E': 'N Census Household Income 100-124'
@@ -336,7 +297,6 @@ for df in pop_dfs:
     df['Household Income 200+_ratio'] = (
         df['N Census Household Income 200+'] / df['N Census Households']
     )
-    df['pct_white'] = df['Pop - Total (White Alone)'] / df['Pop - Total']
     for gender in ['Male', 'Female']:
         for decade, cols in decade_aggregations:
             colnames = [f'Pop - {gender} {c}' for c in cols]
