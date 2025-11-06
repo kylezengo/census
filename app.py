@@ -97,6 +97,7 @@ cities = ['New York', 'Los Angeles', 'San Francisco']
 app = Dash(__name__)
 
 app.layout = html.Div([
+
     html.H1("Census Data Explorer", style={'fontFamily': 'Arial'}),
 
     dcc.Tabs([
@@ -125,7 +126,7 @@ app.layout = html.Div([
                     value=[DEFAULT_VAR],
                     multi=True,
                     placeholder="Select metrics...",
-                    style={'fontFamily': 'Arial'}
+                    style={'fontFamily': 'Arial', 'word-break': 'break-word'}
                 ),
                 html.Iframe(id='dma_map', width='100%', height='650')
             ], style={'padding': '20px'})

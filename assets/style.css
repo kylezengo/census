@@ -1,0 +1,12 @@
+/* in assets/styles.css */
+.Select-menu-outer {
+  font-size: 12px;  /* controls option font size */
+}
+
+.Select-value-label {
+  font-size: 12px;  /* controls selected value font size */
+}
+
+.VirtualizedSelectOption {
+  font-size: 12px;  /* controls options font size (for newer Dash versions) */
+}
