@@ -12,8 +12,10 @@ from dotenv import load_dotenv
 
 ACS_URL = "https://api.census.gov/data/2024/acs/acs5"
 
+
 def _log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
 
 _start = time.time()
 _log("Starting Census download")
@@ -54,7 +56,7 @@ var_misc = [
 ]
 
 groups = [
-    "B01001",   # Sex by Age
+    "B01001",  # Sex by Age
     "B01001A",  # Sex by Age (White Alone)
     "B01001B",  # Sex by Age (Black or African American Alone)
     "B01001C",  # Sex by Age (American Indian and Alaska Native Alone)
@@ -64,10 +66,10 @@ groups = [
     "B01001G",  # Sex by Age (Two or More Races)
     "B01001H",  # Sex by Age (White Alone, Not Hispanic or Latino)
     "B01001I",  # Sex by Age (Hispanic or Latino)
-    "B15003",   # Educational Attainment
-    "B23025",   # Employment Status
-    "B17001",   # Poverty Status
-    "B25003",   # Tenure (owner vs renter)
+    "B15003",  # Educational Attainment
+    "B23025",  # Employment Status
+    "B17001",  # Poverty Status
+    "B25003",  # Tenure (owner vs renter)
     "misc",
 ]
 
@@ -85,8 +87,10 @@ for g in groups:
         if len(vars_list) <= MAX_VARS_PER_CALL:
             var_groups[g] = ",".join(vars_list)
         else:
-            for chunk_i, start in enumerate(range(0, len(vars_list), MAX_VARS_PER_CALL)):
-                chunk = vars_list[start:start + MAX_VARS_PER_CALL]
+            for chunk_i, start in enumerate(
+                range(0, len(vars_list), MAX_VARS_PER_CALL)
+            ):
+                chunk = vars_list[start : start + MAX_VARS_PER_CALL]
                 var_groups[f"{g}_chunk{chunk_i}"] = ",".join(chunk)
 
 _log(f"Variable groups: {len(var_groups)} groups, {len(metrics)} total metrics")
@@ -123,11 +127,14 @@ for level in geo_level:
         merged_df = merged_df.merge(df, how="outer", on=join_cols)
 
     dfs[level] = merged_df
-    _log(f"  {level}: complete ({len(merged_df)} rows, {len(merged_df.columns)} columns)")
+    _log(
+        f"  {level}: complete ({len(merged_df)} rows, {len(merged_df.columns)} columns)"
+    )
 
 # Parallel download helpers ########################################################################
 MAX_WORKERS = 5
 MAX_RETRIES = 3
+
 
 def _fetch_geo(for_clause, in_clause, join_cols):
     """Fetch all variable groups for one geography unit, with retry on failure."""
@@ -146,9 +153,11 @@ def _fetch_geo(for_clause, in_clause, join_cols):
                 var_dfs.append(pd.DataFrame(data[1:], columns=data[0]))
                 break
             if attempt < MAX_RETRIES - 1:
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
             else:
-                print(f"Error {response.status_code} after {MAX_RETRIES} attempts: {response.text}")
+                print(
+                    f"Error {response.status_code} after {MAX_RETRIES} attempts: {response.text}"
+                )
 
     if not var_dfs:
         return None
@@ -158,19 +167,26 @@ def _fetch_geo(for_clause, in_clause, join_cols):
         merged = merged.merge(df, how="outer", on=join_cols)
     return merged
 
+
 def _fetch_state_tracts(state_fips):
-    return _fetch_geo("tract:*", f"state:{state_fips}", ["NAME", "state", "county", "tract"])
+    return _fetch_geo(
+        "tract:*", f"state:{state_fips}", ["NAME", "state", "county", "tract"]
+    )
+
 
 def _fetch_county_block_groups(state_fips, county):
     return _fetch_geo(
         "block group:*",
         f"state:{state_fips} county:{county}",
-        ["NAME", "state", "county", "tract", "block group"]
+        ["NAME", "state", "county", "tract", "block group"],
     )
+
 
 # tract ############################################################################################
 states = dfs["state"]["state"].unique()
-_log(f"Fetching tracts for {len(states)} states ({len(var_groups)} groups each, {MAX_WORKERS} workers)...")
+_log(
+    f"Fetching tracts for {len(states)} states ({len(var_groups)} groups each, {MAX_WORKERS} workers)..."
+)
 with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
     futures = {executor.submit(_fetch_state_tracts, fips): fips for fips in states}
     tract_dfs = []
@@ -179,7 +195,9 @@ with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         result = future.result()
         if result is not None:
             tract_dfs.append(result)
-            _log(f"  tracts: {i}/{len(states)} states done (state {fips}, {len(result)} tracts)")
+            _log(
+                f"  tracts: {i}/{len(states)} states done (state {fips}, {len(result)} tracts)"
+            )
         else:
             _log(f"  tracts: WARNING — state {fips} returned no data")
 
@@ -198,14 +216,19 @@ county_pairs = [
 ]
 _log(f"Fetching block groups for {len(county_pairs)} counties...")
 with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-    futures = {executor.submit(_fetch_county_block_groups, s, c): (s, c) for s, c in county_pairs}
+    futures = {
+        executor.submit(_fetch_county_block_groups, s, c): (s, c)
+        for s, c in county_pairs
+    }
     block_group_dfs = []
     for i, future in enumerate(as_completed(futures), 1):
         s, c = futures[future]
         result = future.result()
         if result is not None:
             block_group_dfs.append(result)
-            _log(f"  block groups: {i}/{len(county_pairs)} done (state {s} county {c}, {len(result)} block groups)")
+            _log(
+                f"  block groups: {i}/{len(county_pairs)} done (state {s} county {c}, {len(result)} block groups)"
+            )
         else:
             _log(f"  block groups: WARNING — state {s} county {c} returned no data")
 
@@ -257,6 +280,7 @@ c_zcta_dma[metrics] = c_zcta_dma[metrics].astype(float)
 
 c_dma = c_zcta_dma.groupby("dma", as_index=False, dropna=False).sum(numeric_only=True)
 
+
 def _clean_census_label(concept, label):
     """Convert a Census API concept + label into a short readable column name.
 
@@ -264,76 +288,88 @@ def _clean_census_label(concept, label):
     will fall through to the generic fallback and still produce usable names.
     """
     if not isinstance(concept, str):
-        concept = ''
+        concept = ""
     if not isinstance(label, str):
-        label = ''
+        label = ""
 
     def _scrub(s):
-        s = re.sub(r'!!', ' ', s)
-        s = re.sub(r'[,:\$]', '', s)
-        return re.sub(r'\s+', ' ', s).strip()
+        s = re.sub(r"!!", " ", s)
+        s = re.sub(r"[,:\$]", "", s)
+        return re.sub(r"\s+", " ", s).strip()
 
     # Sex by Age — total population and all racial/ethnic subgroups (B01001, B01001A–I, etc.)
-    m = re.match(r'Sex by Age\s*(?:\(([^)]*)\))?$', concept, re.IGNORECASE)
+    m = re.match(r"Sex by Age\s*(?:\(([^)]*)\))?$", concept, re.IGNORECASE)
     if m:
-        subgroup = (m.group(1) or '').replace(',', '').strip()
-        demo = _scrub(re.sub(r'^Estimate!!Total:!*', '', label))
-        return ' '.join(filter(None, ['Pop', subgroup, demo]))
+        subgroup = (m.group(1) or "").replace(",", "").strip()
+        demo = _scrub(re.sub(r"^Estimate!!Total:!*", "", label))
+        return " ".join(filter(None, ["Pop", subgroup, demo]))
 
     # Household Income counts (B19001)
-    if re.search(r'Household Income.*Past 12 Months', concept, re.IGNORECASE) and 'Median' not in concept:
-        breakdown = _scrub(re.sub(r'^Estimate!!Total:!*', '', label))
-        return ' '.join(filter(None, ['N Household Income', breakdown]))
+    if (
+        re.search(r"Household Income.*Past 12 Months", concept, re.IGNORECASE)
+        and "Median" not in concept
+    ):
+        breakdown = _scrub(re.sub(r"^Estimate!!Total:!*", "", label))
+        return " ".join(filter(None, ["N Household Income", breakdown]))
 
     # Median Household Income total (B19013) — single overall estimate, no age breakdown
-    if re.match(r'Median Household Income in the Past 12 Months', concept, re.IGNORECASE) and 'Age' not in concept:
-        return 'Median Household Income'
+    if (
+        re.match(
+            r"Median Household Income in the Past 12 Months", concept, re.IGNORECASE
+        )
+        and "Age" not in concept
+    ):
+        return "Median Household Income"
 
     # Median Household Income by age of householder (B19049)
-    if re.search(r'Median.*Household Income', concept, re.IGNORECASE):
-        age = _scrub(label.rsplit('!!', 1)[-1])
-        return ' '.join(filter(None, ['Median Household Income', age if age.lower() != 'total' else '']))
+    if re.search(r"Median.*Household Income", concept, re.IGNORECASE):
+        age = _scrub(label.rsplit("!!", 1)[-1])
+        return " ".join(
+            filter(
+                None, ["Median Household Income", age if age.lower() != "total" else ""]
+            )
+        )
 
     # Households by Type (B11012)
-    if re.match(r'Households by Type', concept, re.IGNORECASE):
-        return 'Households by Type - ' + _scrub(label)
+    if re.match(r"Households by Type", concept, re.IGNORECASE):
+        return "Households by Type - " + _scrub(label)
 
     # Educational Attainment (B15003)
-    if re.search(r'Educational Attainment', concept, re.IGNORECASE):
-        detail = _scrub(re.sub(r'^Estimate!!Total:!*', '', label))
-        return ' '.join(filter(None, ['Education', detail]))
+    if re.search(r"Educational Attainment", concept, re.IGNORECASE):
+        detail = _scrub(re.sub(r"^Estimate!!Total:!*", "", label))
+        return " ".join(filter(None, ["Education", detail]))
 
     # Employment Status (B23025)
-    if re.search(r'Employment Status', concept, re.IGNORECASE):
-        detail = _scrub(re.sub(r'^Estimate!!Total:!*', '', label))
-        return ' '.join(filter(None, ['Employment', detail]))
+    if re.search(r"Employment Status", concept, re.IGNORECASE):
+        detail = _scrub(re.sub(r"^Estimate!!Total:!*", "", label))
+        return " ".join(filter(None, ["Employment", detail]))
 
     # Poverty Status (B17001)
-    if re.search(r'Poverty Status', concept, re.IGNORECASE):
-        detail = _scrub(re.sub(r'^Estimate!!Total:!*', '', label))
-        return ' '.join(filter(None, ['Poverty', detail]))
+    if re.search(r"Poverty Status", concept, re.IGNORECASE):
+        detail = _scrub(re.sub(r"^Estimate!!Total:!*", "", label))
+        return " ".join(filter(None, ["Poverty", detail]))
 
     # Tenure — owner vs renter occupied (B25003)
-    if re.match(r'Tenure', concept, re.IGNORECASE):
-        detail = _scrub(re.sub(r'^Estimate!!Total:!*', '', label))
-        return ' '.join(filter(None, ['Housing Tenure', detail]))
+    if re.match(r"Tenure", concept, re.IGNORECASE):
+        detail = _scrub(re.sub(r"^Estimate!!Total:!*", "", label))
+        return " ".join(filter(None, ["Housing Tenure", detail]))
 
     # Median Home Value (B25077)
-    if re.search(r'Median Value', concept, re.IGNORECASE):
-        return 'Median Home Value'
+    if re.search(r"Median Value", concept, re.IGNORECASE):
+        return "Median Home Value"
 
     # Median Gross Rent (B25064)
-    if re.search(r'Median Gross Rent', concept, re.IGNORECASE):
-        return 'Median Gross Rent'
+    if re.search(r"Median Gross Rent", concept, re.IGNORECASE):
+        return "Median Gross Rent"
 
     # Generic fallback — strips year annotations and special chars
-    clean = re.sub(r'\(in \d{4}[^)]*\)', '', concept + ' - ' + label)
+    clean = re.sub(r"\(in \d{4}[^)]*\)", "", concept + " - " + label)
     return _scrub(clean)
 
 
 # Rename columns for clarity
 concept_label_map = {
-    row['variable']: _clean_census_label(row['concept'], row['label'])
+    row["variable"]: _clean_census_label(row["concept"], row["label"])
     for _, row in variables.iterrows()
 }
 
@@ -357,38 +393,38 @@ decade_labels = [d[0] for d in decade_aggregations]
 
 # Racial/ethnic subgroup share of total population
 racial_pct = {
-    'pct_white_alone':    'Pop White Alone',
-    'pct_white_nh':       'Pop White Alone Not Hispanic or Latino',
-    'pct_black':          'Pop Black or African American Alone',
-    'pct_hispanic':       'Pop Hispanic or Latino',
-    'pct_asian':          'Pop Asian Alone',
-    'pct_aian':           'Pop American Indian and Alaska Native Alone',
-    'pct_nhpi':           'Pop Native Hawaiian and Other Pacific Islander Alone',
-    'pct_other_race':     'Pop Some Other Race Alone',
-    'pct_two_or_more':    'Pop Two or More Races',
+    "pct_white_alone": "Pop White Alone",
+    "pct_white_nh": "Pop White Alone Not Hispanic or Latino",
+    "pct_black": "Pop Black or African American Alone",
+    "pct_hispanic": "Pop Hispanic or Latino",
+    "pct_asian": "Pop Asian Alone",
+    "pct_aian": "Pop American Indian and Alaska Native Alone",
+    "pct_nhpi": "Pop Native Hawaiian and Other Pacific Islander Alone",
+    "pct_other_race": "Pop Some Other Race Alone",
+    "pct_two_or_more": "Pop Two or More Races",
 }
 
 # Derived metrics computed using raw Census codes BEFORE column rename
 pre_rename_derived = {
-    'pct_bachelors_plus': {
-        'num': ['B15003_022E', 'B15003_023E', 'B15003_024E', 'B15003_025E'],
-        'denom': 'B15003_001E',
+    "pct_bachelors_plus": {
+        "num": ["B15003_022E", "B15003_023E", "B15003_024E", "B15003_025E"],
+        "denom": "B15003_001E",
     },
-    'pct_unemployed': {
-        'num': ['B23025_005E'],
-        'denom': 'B23025_003E',
+    "pct_unemployed": {
+        "num": ["B23025_005E"],
+        "denom": "B23025_003E",
     },
-    'pct_poverty': {
-        'num': ['B17001_002E'],
-        'denom': 'B17001_001E',
+    "pct_poverty": {
+        "num": ["B17001_002E"],
+        "denom": "B17001_001E",
     },
-    'pct_owner_occupied': {
-        'num': ['B25003_002E'],
-        'denom': 'B25003_001E',
+    "pct_owner_occupied": {
+        "num": ["B25003_002E"],
+        "denom": "B25003_001E",
     },
-    'pct_renter_occupied': {
-        'num': ['B25003_003E'],
-        'denom': 'B25003_001E',
+    "pct_renter_occupied": {
+        "num": ["B25003_003E"],
+        "denom": "B25003_001E",
     },
 }
 
@@ -398,11 +434,13 @@ for name, df in zip(pop_df_names, pop_dfs):
     _log(f"  Computing derived metrics for {name} ({len(df)} rows)...")
     # Replace Census suppressed-value sentinel before any derived calculations
     available_metrics = [m for m in metrics if m in df.columns]
-    df[available_metrics] = df[available_metrics].astype(float).replace(-666666666.0, np.nan)
+    df[available_metrics] = (
+        df[available_metrics].astype(float).replace(-666666666.0, np.nan)
+    )
     # Compute pct_ derived metrics using raw Census codes before rename
     for pct_col, spec in pre_rename_derived.items():
-        num_cols = [c for c in spec['num'] if c in df.columns]
-        denom_col = spec['denom']
+        num_cols = [c for c in spec["num"] if c in df.columns]
+        denom_col = spec["denom"]
         if num_cols and denom_col in df.columns:
             df[pct_col] = df[num_cols].sum(axis=1) / df[denom_col]
     df.rename(columns=concept_label_map, inplace=True)
@@ -429,7 +467,7 @@ for name, df in zip(pop_df_names, pop_dfs):
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
 # Drop all Median columns from c_dma — summing medians over ZCTAs is meaningless
-median_cols_to_drop = [c for c in c_dma.columns if 'Median' in c]
+median_cols_to_drop = [c for c in c_dma.columns if "Median" in c]
 c_dma = c_dma.drop(columns=median_cols_to_drop)
 
 ####################################################################################################
