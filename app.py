@@ -2,6 +2,7 @@
 
 import folium
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.io as pio
@@ -321,6 +322,24 @@ def _get_color(metric):
     if metric.startswith('pct_'):
         return 'Oranges'
     return MALE_COLOR
+
+def _compute_trendline(df, x_metric, y_metric):
+    """OLS trendline via numpy. Returns (x_line, y_line, slope, intercept, r2) or None."""
+    clean = df[[x_metric, y_metric]].dropna()
+    if len(clean) < 3:
+        return None
+    x = clean[x_metric].values.astype(float)
+    y = clean[y_metric].values.astype(float)
+    slope, intercept = np.polyfit(x, y, 1)
+    r2 = float(np.corrcoef(x, y)[0, 1] ** 2)
+    x_line = np.linspace(x.min(), x.max(), 100)
+    return x_line, slope * x_line + intercept, slope, intercept, r2
+
+def _fmt_coef(v):
+    if abs(v) >= 10000: return f'{v:,.0f}'
+    if abs(v) >= 100:   return f'{v:.1f}'
+    if abs(v) >= 1:     return f'{v:.3f}'
+    return f'{v:.4f}'
 
 def _axis_fmt(metric):
     if metric in CPI_COLS:
@@ -694,6 +713,13 @@ app.layout = html.Div([
                         clearable=True,
                         placeholder='None'
                     ),
+                    dcc.Checklist(
+                        id='scatter-trendline',
+                        options=[{'label': '  Show trend line', 'value': 'show'}],
+                        value=[],
+                        inline=True,
+                        style={'fontFamily': 'Arial', 'marginTop': '14px', 'fontSize': '13px'}
+                    ),
                 ], style={'fontFamily': 'Arial', 'width': '300px', 'padding': '20px', 'flexShrink': 0}),
                 html.Div([
                     dcc.Graph(id='scatter-plot', style={'height': '700px'})
@@ -923,8 +949,9 @@ def update_scatter_options(geo):
     Input('scatter-y', 'value'),
     Input('scatter-color', 'value'),
     Input('scatter-size', 'value'),
+    Input('scatter-trendline', 'value'),
 )
-def update_scatter(geo, x_metric, y_metric, color_metric, size_metric):
+def update_scatter(geo, x_metric, y_metric, color_metric, size_metric, show_trendline):
     df, label_col, _ = SCATTER_GEOS[geo]
 
     extra = [m for m in [color_metric, size_metric] if m]
@@ -948,6 +975,25 @@ def update_scatter(geo, x_metric, y_metric, color_metric, size_metric):
     if color_metric:
         fmt = _axis_fmt(color_metric)
         fig.update_coloraxes(colorbar_tickprefix=fmt.get('tickprefix', ''), colorbar_tickformat=fmt.get('tickformat', ''))
+    if show_trendline:
+        result = _compute_trendline(plot_df, x_metric, y_metric)
+        if result:
+            x_line, y_line, slope, intercept, r2 = result
+            fig.add_shape(
+                type='line',
+                x0=x_line[0], y0=y_line[0],
+                x1=x_line[-1], y1=y_line[-1],
+                line=dict(color='crimson', width=2.5),
+                layer='above',
+            )
+            sign = '+' if intercept >= 0 else '-'
+            fig.add_annotation(
+                x=0.02, y=0.98, xref='paper', yref='paper',
+                text=f'y = {_fmt_coef(slope)}x {sign} {_fmt_coef(abs(intercept))}<br>R² = {r2:.3f}',
+                showarrow=False, align='left', xanchor='left', yanchor='top',
+                font=dict(size=12, family='monospace'),
+                bgcolor='rgba(255,255,255,0.85)', bordercolor='#ccc', borderwidth=1,
+            )
     fig.update_layout(
         margin=dict(l=40, r=20, t=20, b=40),
         xaxis=_axis_fmt(x_metric),
