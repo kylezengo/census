@@ -43,6 +43,15 @@ c_block_group = pd.read_csv("c_block_group.csv", dtype={"GEOID": object})
 
 state_name = pd.read_csv("state_name.csv", dtype={"state": object})
 
+
+def _add_price_to_rent(df):
+    if "Median Home Value" in df.columns and "Median Gross Rent" in df.columns:
+        df["price_to_rent_ratio"] = df["Median Home Value"] / (df["Median Gross Rent"] * 12)
+
+
+for _df in [c_state, c_dma, c_county_state, c_zcta_dma, c_tract, c_block_group, ts_state, ts_county]:
+    _add_price_to_rent(_df)
+
 # Set up the geographic geometry files #########################################################
 state_geom = state_geom_raw[["NAME", "geometry"]].set_index("NAME")
 state_geom_json = state_geom.to_json()
@@ -123,6 +132,7 @@ TIMESERIES_METRICS = [
     "pct_bachelors_plus",
     "pct_owner_occupied",
     "pct_renter_occupied",
+    "price_to_rent_ratio",
 ]
 
 TIMESERIES_GEOS = {
@@ -519,6 +529,7 @@ METRIC_LABELS = {
     "pct_owner_occupied": "% Owner-Occupied Housing",
     "pct_renter_occupied": "% Renter-Occupied Housing",
     "Household Income 200+_ratio": "% Households Income $200k+",
+    "price_to_rent_ratio": "Price-to-Rent Ratio",
 }
 
 
@@ -561,10 +572,13 @@ def _fmt_coef(v):
     return f"{v:.4f}"
 
 
+_PCT_METRICS = {"Household Income 200+_ratio"}
+
+
 def _axis_fmt(metric):
     if metric in CPI_COLS:
         return dict(tickprefix="$", tickformat=",.0f")
-    if metric.startswith("pct_") or "_ratio" in metric:
+    if metric.startswith("pct_") or metric in _PCT_METRICS:
         return dict(tickformat=".0%")
     return {}
 
@@ -572,7 +586,7 @@ def _axis_fmt(metric):
 def _hover_fmt(metric):
     if metric in CPI_COLS:
         return "$,.0f"
-    if metric.startswith("pct_") or "_ratio" in metric:
+    if metric.startswith("pct_") or metric in _PCT_METRICS:
         return ".1%"
     return ",.0f"
 
@@ -627,6 +641,7 @@ def _normalize_checkbox(component_id):
 
 # App layout ###################################################################################
 app = Dash(__name__)
+server = app.server  # for gunicorn
 
 _tab_style = {"fontFamily": "Arial"}
 

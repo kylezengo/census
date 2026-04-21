@@ -1,0 +1,18 @@
+.env
+.git
+.gitignore
+__pycache__
+*.pyc
+
+# Data files — downloaded from GCS at runtime
+*.csv
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+
+# These three are in the repo and needed — override the exclusions above
+!dma_polygon_map.csv
+!dma_polygons.geojson
+!zip_to_dma.csv
