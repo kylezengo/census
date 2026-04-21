@@ -46,10 +46,21 @@ state_name = pd.read_csv("state_name.csv", dtype={"state": object})
 
 def _add_price_to_rent(df):
     if "Median Home Value" in df.columns and "Median Gross Rent" in df.columns:
-        df["price_to_rent_ratio"] = df["Median Home Value"] / (df["Median Gross Rent"] * 12)
+        df["price_to_rent_ratio"] = df["Median Home Value"] / (
+            df["Median Gross Rent"] * 12
+        )
 
 
-for _df in [c_state, c_dma, c_county_state, c_zcta_dma, c_tract, c_block_group, ts_state, ts_county]:
+for _df in [
+    c_state,
+    c_dma,
+    c_county_state,
+    c_zcta_dma,
+    c_tract,
+    c_block_group,
+    ts_state,
+    ts_county,
+]:
     _add_price_to_rent(_df)
 
 # Set up the geographic geometry files #########################################################
@@ -577,9 +588,9 @@ _PCT_METRICS = {"Household Income 200+_ratio"}
 
 def _axis_fmt(metric):
     if metric in CPI_COLS:
-        return dict(tickprefix="$", tickformat=",.0f")
+        return {"tickprefix": "$", "tickformat": ",.0f"}
     if metric.startswith("pct_") or metric in _PCT_METRICS:
-        return dict(tickformat=".0%")
+        return {"tickformat": ".0%"}
     return {}
 
 
@@ -596,7 +607,9 @@ def _hovertemplate(x_metric, y_metric, color_metric=None):
     lines.append(f"{_metric_label(x_metric)}: %{{x:{_hover_fmt(x_metric)}}}")
     lines.append(f"{_metric_label(y_metric)}: %{{y:{_hover_fmt(y_metric)}}}")
     if color_metric:
-        lines.append(f"{_metric_label(color_metric)}: %{{marker.color:{_hover_fmt(color_metric)}}}")
+        lines.append(
+            f"{_metric_label(color_metric)}: %{{marker.color:{_hover_fmt(color_metric)}}}"
+        )
     lines.append("<extra></extra>")
     return "<br>".join(lines)
 
@@ -1082,7 +1095,8 @@ app.layout = html.Div(
                                         ),
                                         _inflate_checkbox("trends-inflate"),
                                         html.P(
-                                            "ACS 5-Year Estimates (rolling average). Each point represents a 5-year window.",
+                                            "ACS 5-Year Estimates (rolling average). "
+                                            "Each point represents a 5-year window.",
                                             style={
                                                 "fontSize": "11px",
                                                 "color": "#888",
@@ -1269,132 +1283,127 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.Div(
-                                            [
-                                                html.Label(
-                                                    "Geography Level",
-                                                    style={"fontWeight": "bold"},
-                                                ),
-                                                dcc.Dropdown(
-                                                    id="scatter-geo",
-                                                    options=list(SCATTER_GEOS.keys()),
-                                                    value="County",
-                                                    clearable=False,
-                                                ),
-                                                html.Label(
-                                                    "X Axis",
-                                                    style={
-                                                        "fontWeight": "bold",
-                                                        "marginTop": "12px",
-                                                    },
-                                                ),
-                                                dcc.Dropdown(
-                                                    id="scatter-x",
-                                                    options=_make_options(
-                                                        county_metric_cols
-                                                    ),
-                                                    value="Pop",
-                                                    clearable=False,
-                                                ),
-                                                html.Label(
-                                                    "Y Axis",
-                                                    style={
-                                                        "fontWeight": "bold",
-                                                        "marginTop": "12px",
-                                                    },
-                                                ),
-                                                dcc.Dropdown(
-                                                    id="scatter-y",
-                                                    options=_make_options(
-                                                        county_metric_cols
-                                                    ),
-                                                    value="pct_male",
-                                                    clearable=False,
-                                                ),
-                                                html.Label(
-                                                    "Color by (optional)",
-                                                    style={
-                                                        "fontWeight": "bold",
-                                                        "marginTop": "12px",
-                                                    },
-                                                ),
-                                                dcc.Dropdown(
-                                                    id="scatter-color",
-                                                    options=_make_options(
-                                                        county_metric_cols
-                                                    ),
-                                                    value=None,
-                                                    clearable=True,
-                                                    placeholder="None",
-                                                ),
-                                                html.Label(
-                                                    "Size by (optional)",
-                                                    style={
-                                                        "fontWeight": "bold",
-                                                        "marginTop": "12px",
-                                                    },
-                                                ),
-                                                dcc.Dropdown(
-                                                    id="scatter-size",
-                                                    options=_make_options(
-                                                        county_metric_cols
-                                                    ),
-                                                    value=None,
-                                                    clearable=True,
-                                                    placeholder="None",
-                                                ),
-                                                dcc.Checklist(
-                                                    id="scatter-trendline",
-                                                    options=[
-                                                        {
-                                                            "label": "  Show trend line",
-                                                            "value": "show",
-                                                        }
-                                                    ],
-                                                    value=[],
-                                                    inline=True,
-                                                    style={
-                                                        "fontFamily": "Arial",
-                                                        "marginTop": "14px",
-                                                        "fontSize": "13px",
-                                                    },
-                                                ),
-                                                html.Label(
-                                                    id="scatter-filter-label",
-                                                    style={
-                                                        "fontWeight": "bold",
-                                                        "marginTop": "16px",
-                                                        "display": "block",
-                                                    },
-                                                ),
-                                                dcc.Dropdown(
-                                                    id="scatter-filter",
-                                                    options=[],
-                                                    value=[],
-                                                    multi=True,
-                                                    placeholder="All",
-                                                    disabled=True,
-                                                    style={"marginTop": "4px"},
-                                                ),
-                                            ],
+                                    [
+                                        html.Label(
+                                            "Geography Level",
+                                            style={"fontWeight": "bold"},
+                                        ),
+                                        dcc.Dropdown(
+                                            id="scatter-geo",
+                                            options=list(SCATTER_GEOS.keys()),
+                                            value="County",
+                                            clearable=False,
+                                        ),
+                                        html.Label(
+                                            "X Axis",
                                             style={
-                                                "fontFamily": "Arial",
-                                                "width": "300px",
-                                                "padding": "20px",
-                                                "flexShrink": 0,
+                                                "fontWeight": "bold",
+                                                "marginTop": "12px",
                                             },
                                         ),
-                                        html.Div(
-                                            [
-                                                dcc.Graph(
-                                                    id="scatter-plot",
-                                                    style={"height": "700px"},
-                                                )
+                                        dcc.Dropdown(
+                                            id="scatter-x",
+                                            options=_make_options(county_metric_cols),
+                                            value="Pop",
+                                            clearable=False,
+                                        ),
+                                        html.Label(
+                                            "Y Axis",
+                                            style={
+                                                "fontWeight": "bold",
+                                                "marginTop": "12px",
+                                            },
+                                        ),
+                                        dcc.Dropdown(
+                                            id="scatter-y",
+                                            options=_make_options(county_metric_cols),
+                                            value="pct_male",
+                                            clearable=False,
+                                        ),
+                                        html.Label(
+                                            "Color by (optional)",
+                                            style={
+                                                "fontWeight": "bold",
+                                                "marginTop": "12px",
+                                            },
+                                        ),
+                                        dcc.Dropdown(
+                                            id="scatter-color",
+                                            options=_make_options(county_metric_cols),
+                                            value=None,
+                                            clearable=True,
+                                            placeholder="None",
+                                        ),
+                                        html.Label(
+                                            "Size by (optional)",
+                                            style={
+                                                "fontWeight": "bold",
+                                                "marginTop": "12px",
+                                            },
+                                        ),
+                                        dcc.Dropdown(
+                                            id="scatter-size",
+                                            options=_make_options(county_metric_cols),
+                                            value=None,
+                                            clearable=True,
+                                            placeholder="None",
+                                        ),
+                                        dcc.Checklist(
+                                            id="scatter-trendline",
+                                            options=[
+                                                {
+                                                    "label": "  Show trend line",
+                                                    "value": "show",
+                                                }
                                             ],
-                                            style={"flexGrow": 1, "padding": "20px"},
+                                            value=[],
+                                            inline=True,
+                                            style={
+                                                "fontFamily": "Arial",
+                                                "marginTop": "14px",
+                                                "fontSize": "13px",
+                                            },
+                                        ),
+                                        html.Label(
+                                            id="scatter-filter-label",
+                                            style={
+                                                "fontWeight": "bold",
+                                                "marginTop": "16px",
+                                                "display": "block",
+                                            },
+                                        ),
+                                        dcc.Dropdown(
+                                            id="scatter-filter",
+                                            options=[],
+                                            value=[],
+                                            multi=True,
+                                            placeholder="All",
+                                            disabled=True,
+                                            style={"marginTop": "4px"},
                                         ),
                                     ],
-                                    style={"display": "flex", "alignItems": "flex-start"},
+                                    style={
+                                        "fontFamily": "Arial",
+                                        "width": "300px",
+                                        "padding": "20px",
+                                        "flexShrink": 0,
+                                    },
                                 ),
+                                html.Div(
+                                    [
+                                        dcc.Graph(
+                                            id="scatter-plot",
+                                            style={"height": "700px"},
+                                        )
+                                    ],
+                                    style={"flexGrow": 1, "padding": "20px"},
+                                ),
+                            ],
+                            style={
+                                "display": "flex",
+                                "alignItems": "flex-start",
+                            },
+                        ),
                     ],
                 ),
                 dcc.Tab(
@@ -1532,6 +1541,7 @@ def _build_choropleth_map(
 
 
 def generate_state_map(selected_metrics, normalize=False):
+    """Render state choropleth map."""
     df = _normalize_df(c_state, selected_metrics) if normalize else c_state
     return _build_choropleth_map(
         state_geom_json, df, "state", "State", selected_metrics
@@ -1539,11 +1549,13 @@ def generate_state_map(selected_metrics, normalize=False):
 
 
 def generate_dma_map(selected_metrics, normalize=False):
+    """Render DMA choropleth map."""
     df = _normalize_df(c_dma, selected_metrics) if normalize else c_dma
     return _build_choropleth_map(dma_geom_json, df, "dma", "DMA", selected_metrics)
 
 
 def generate_county_map(selected_metrics, normalize=False):
+    """Render county choropleth map."""
     df = (
         _normalize_df(c_county_state, selected_metrics) if normalize else c_county_state
     )
@@ -1553,6 +1565,7 @@ def generate_county_map(selected_metrics, normalize=False):
 
 
 def generate_zcta_map(selected_metrics, selected_dma, pop_min=None, normalize=False):
+    """Render ZCTA choropleth map filtered to a single DMA."""
     zcta_geom_select = zcta_geom[zcta_geom["dma"] == selected_dma].reset_index()
     zcta_geom_select = zcta_geom_select[["ZCTA5CE20", "geometry"]].set_index(
         "ZCTA5CE20"
@@ -1573,6 +1586,7 @@ def generate_zcta_map(selected_metrics, selected_dma, pop_min=None, normalize=Fa
 def generate_tract_map(
     selected_metrics, selected_state, pop_min=None, exclude=None, normalize=False
 ):
+    """Render census tract choropleth map for a single state."""
     state_fips = state_name.loc[
         state_name["state_NAME"] == selected_state, "state"
     ].values[0]
@@ -1593,6 +1607,7 @@ def generate_tract_map(
 def generate_block_group_map(
     selected_metrics, selected_city, pop_min=None, exclude=None, normalize=False
 ):
+    """Render block group choropleth map for NYC, LA, or SF."""
     county_fips = _city_fips[selected_city]
     df = c_block_group.loc[
         c_block_group["GEOID"].str[:5].isin(county_fips)
@@ -1622,6 +1637,7 @@ def generate_block_group_map(
     Input("state-normalize", "value"),
 )
 def update_state_map(metrics, normalize):
+    """Callback: update state map."""
     return generate_state_map(metrics, bool(normalize))
 
 
@@ -1631,6 +1647,7 @@ def update_state_map(metrics, normalize):
     Input("dma-normalize", "value"),
 )
 def update_dma_map(metrics, normalize):
+    """Callback: update DMA map."""
     return generate_dma_map(metrics, bool(normalize))
 
 
@@ -1640,6 +1657,7 @@ def update_dma_map(metrics, normalize):
     Input("county-normalize", "value"),
 )
 def update_county_map(metrics, normalize):
+    """Callback: update county map."""
     return generate_county_map(metrics, bool(normalize))
 
 
@@ -1651,6 +1669,7 @@ def update_county_map(metrics, normalize):
     Input("zcta-normalize", "value"),
 )
 def update_zcta_map(metrics, dma, pop_min, normalize):
+    """Callback: update ZCTA map."""
     return generate_zcta_map(metrics, dma, pop_min, bool(normalize))
 
 
@@ -1663,6 +1682,7 @@ def update_zcta_map(metrics, dma, pop_min, normalize):
     Input("tract-normalize", "value"),
 )
 def update_tract_map(metrics, state, pop_min, exclude, normalize):
+    """Callback: update tract map."""
     return generate_tract_map(metrics, state, pop_min, exclude, bool(normalize))
 
 
@@ -1675,11 +1695,13 @@ def update_tract_map(metrics, state, pop_min, exclude, normalize):
     Input("block-group-normalize", "value"),
 )
 def update_block_group_map(metrics, city, pop_min, exclude, normalize):
+    """Callback: update block group map."""
     return generate_block_group_map(metrics, city, pop_min, exclude, bool(normalize))
 
 
 @app.callback(Output("tract-exclude", "options"), Input("state-selector", "value"))
 def update_tract_exclude_options(selected_state):
+    """Callback: populate tract exclude dropdown."""
     state_fips = state_name.loc[
         state_name["state_NAME"] == selected_state, "state"
     ].values[0]
@@ -1688,6 +1710,7 @@ def update_tract_exclude_options(selected_state):
 
 @app.callback(Output("block-group-exclude", "options"), Input("city-selector", "value"))
 def update_block_group_exclude_options(selected_city):
+    """Callback: populate block group exclude dropdown."""
     return sorted(
         c_block_group.loc[
             c_block_group["GEOID"].str[:5].isin(_city_fips[selected_city]), "GEOID"
@@ -1705,6 +1728,7 @@ def update_block_group_exclude_options(selected_city):
     prevent_initial_call=True,
 )
 def load_scatter_preset(*_):
+    """Callback: load scatter preset values."""
     triggered_id = callback_context.triggered[0]["prop_id"]
     idx = int(triggered_id.split("-")[2].split(".")[0])
     s = SUGGESTED_SCATTERS[idx]
@@ -1719,6 +1743,7 @@ def load_scatter_preset(*_):
     Input("scatter-geo", "value"),
 )
 def update_scatter_options(geo):
+    """Callback: update scatter dropdown options when geo changes."""
     _, _, cols = SCATTER_GEOS[geo]
     opts = _make_options(cols)
     return opts, opts, opts, opts
@@ -1732,6 +1757,7 @@ def update_scatter_options(geo):
     Input("scatter-geo", "value"),
 )
 def update_scatter_filter_options(geo):
+    """Callback: update scatter filter dropdown based on geo level."""
     if geo == "County":
         opts = sorted(c_county_state["state_NAME"].dropna().unique())
         return "Filter by State", [{"label": o, "value": o} for o in opts], [], False
@@ -1754,6 +1780,7 @@ def update_scatter_filter_options(geo):
 def update_scatter(
     geo, x_metric, y_metric, color_metric, size_metric, show_trendline, filter_vals
 ):
+    """Callback: render scatter plot."""
     df, label_col, _ = SCATTER_GEOS[geo]
 
     if filter_vals:
@@ -1783,7 +1810,10 @@ def update_scatter(
             else _trunc_colorscale("Viridis")
         ),
     )
-    fig.update_traces(marker=dict(opacity=0.65), hovertemplate=_hovertemplate(x_metric, y_metric, color_metric))
+    fig.update_traces(
+        marker={"opacity": 0.65},
+        hovertemplate=_hovertemplate(x_metric, y_metric, color_metric),
+    )
     if color_metric:
         fmt = _axis_fmt(color_metric)
         fig.update_coloraxes(
@@ -1800,7 +1830,7 @@ def update_scatter(
                 y0=y_line[0],
                 x1=x_line[-1],
                 y1=y_line[-1],
-                line=dict(color="crimson", width=2.5),
+                line={"color": "crimson", "width": 2.5},
                 layer="above",
             )
             sign = "+" if intercept >= 0 else "-"
@@ -1814,13 +1844,13 @@ def update_scatter(
                 align="left",
                 xanchor="left",
                 yanchor="top",
-                font=dict(size=12, family="monospace"),
+                font={"size": 12, "family": "monospace"},
                 bgcolor="rgba(255,255,255,0.85)",
                 bordercolor="#ccc",
                 borderwidth=1,
             )
     fig.update_layout(
-        margin=dict(l=40, r=20, t=20, b=40),
+        margin={"l": 40, "r": 20, "t": 20, "b": 40},
         xaxis=_axis_fmt(x_metric),
         yaxis=_axis_fmt(y_metric),
     )
@@ -1840,6 +1870,7 @@ def update_scatter(
     prevent_initial_call=True,
 )
 def load_anim_preset(*_):
+    """Callback: load animated scatter preset values."""
     triggered_id = callback_context.triggered[0]["prop_id"]
     idx = int(triggered_id.split("-")[2].split(".")[0])
     s = SUGGESTED_ANIM_SCATTERS[idx]
@@ -1858,6 +1889,7 @@ def load_anim_preset(*_):
 def update_anim_scatter(
     geo_level, x_metric, y_metric, color_metric, size_metric, inflate
 ):
+    """Callback: render animated scatter plot."""
     df, name_col = TIMESERIES_GEOS[geo_level]
 
     extra = [m for m in [color_metric, size_metric] if m]
@@ -1892,7 +1924,7 @@ def update_anim_scatter(
         ),
     )
     tmpl = _hovertemplate(x_metric, y_metric, color_metric)
-    fig.update_traces(marker=dict(opacity=0.7), hovertemplate=tmpl)
+    fig.update_traces(marker={"opacity": 0.7}, hovertemplate=tmpl)
     for frame in fig.frames:
         for trace in frame.data:
             trace.hovertemplate = tmpl
@@ -1903,7 +1935,7 @@ def update_anim_scatter(
             colorbar_tickformat=fmt.get("tickformat", ""),
         )
     fig.update_layout(
-        margin=dict(l=40, r=20, t=20, b=40),
+        margin={"l": 40, "r": 20, "t": 20, "b": 40},
         xaxis=_axis_fmt(x_metric),
         yaxis=_axis_fmt(y_metric),
     )
@@ -1912,6 +1944,7 @@ def update_anim_scatter(
 
 @app.callback(Output("trends-geo", "options"), Input("trends-geo-level", "value"))
 def update_trends_geo_options(geo_level):
+    """Callback: populate geography dropdown for trends tab."""
     df, name_col = TIMESERIES_GEOS[geo_level]
     return sorted(df[name_col].unique())
 
@@ -1925,6 +1958,7 @@ def update_trends_geo_options(geo_level):
     prevent_initial_call=True,
 )
 def load_trends_preset(*_):
+    """Callback: load trends preset values."""
     triggered_id = callback_context.triggered[0]["prop_id"]
     idx = int(triggered_id.split("-")[2].split(".")[0])
     s = SUGGESTED_TRENDS[idx]
@@ -1939,6 +1973,7 @@ def load_trends_preset(*_):
     Input("trends-inflate", "value"),
 )
 def update_trends_chart(geo_level, geo_names, metric, inflate):
+    """Callback: render trends line chart."""
     if not geo_names or not metric:
         return px.line()
     df, name_col = TIMESERIES_GEOS[geo_level]
@@ -1956,8 +1991,8 @@ def update_trends_chart(geo_level, geo_names, metric, inflate):
         color_discrete_sequence=px.colors.qualitative.Set2,
     )
     fig.update_layout(
-        margin=dict(l=40, r=20, t=20, b=40),
-        xaxis=dict(dtick=1, title="Year"),
+        margin={"l": 40, "r": 20, "t": 20, "b": 40},
+        xaxis={"dtick": 1, "title": "Year"},
         yaxis=_axis_fmt(metric),
         legend_title=geo_level,
     )
@@ -1970,8 +2005,9 @@ def update_trends_chart(geo_level, geo_names, metric, inflate):
     Input("corr-geo-level", "value"),
     [Input(f"corr-group-{i}", "n_clicks") for i in range(len(CORR_METRIC_GROUPS))],
 )
-def update_corr_options(geo_level, *group_clicks):
-    df, cols = CORR_GEOS[geo_level]
+def update_corr_options(geo_level, *_group_clicks):
+    """Callback: update correlation metric options and apply preset groups."""
+    _, cols = CORR_GEOS[geo_level]
     opts = _make_options(cols)
     triggered = callback_context.triggered[0]["prop_id"]
     if "corr-group" in triggered:
@@ -1989,6 +2025,7 @@ def update_corr_options(geo_level, *group_clicks):
     Input("corr-metrics", "value"),
 )
 def update_corr_matrix(geo_level, selected_metrics):
+    """Callback: render correlation heatmap."""
     if not selected_metrics or len(selected_metrics) < 2:
         return px.imshow([[]], title="Select at least 2 metrics")
     df, _ = CORR_GEOS[geo_level]
@@ -2007,16 +2044,22 @@ def update_corr_matrix(geo_level, selected_metrics):
         aspect="auto",
     )
     fig.update_traces(textfont_size=max(7, min(12, 120 // n)))
+    tick_size = max(8, min(12, 120 // n))
     fig.update_layout(
-        margin=dict(l=20, r=20, t=30, b=20),
-        coloraxis_colorbar=dict(title="r", tickformat=".1f"),
-        xaxis=dict(tickangle=-35, tickfont_size=max(8, min(12, 120 // n))),
-        yaxis=dict(tickfont_size=max(8, min(12, 120 // n))),
+        margin={"l": 20, "r": 20, "t": 30, "b": 20},
+        coloraxis_colorbar={"title": "r", "tickformat": ".1f"},
+        xaxis={"tickangle": -35, "tickfont_size": tick_size},
+        yaxis={"tickfont_size": tick_size},
     )
     return fig
 
 
-_btn_active_style = {**_btn_style, "background": "#d0e4f7", "borderColor": "#4a90d9", "fontWeight": "bold"}
+_btn_active_style = {
+    **_btn_style,
+    "background": "#d0e4f7",
+    "borderColor": "#4a90d9",
+    "fontWeight": "bold",
+}
 
 _N_TRENDS = len(SUGGESTED_TRENDS)
 _N_SCATTER = len(SUGGESTED_SCATTERS)
@@ -2035,6 +2078,7 @@ def _parse_preset_idx(triggered_id, prefix):
     prevent_initial_call=True,
 )
 def _update_trends_active(*args):
+    """Callback: track active trends preset index."""
     *_, current = args
     idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "trends")
     return None if current == idx else idx
@@ -2045,6 +2089,7 @@ def _update_trends_active(*args):
     Input("trends-active-preset", "data"),
 )
 def _highlight_trends_presets(active):
+    """Callback: highlight active trends preset button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_TRENDS)]
 
 
@@ -2055,6 +2100,7 @@ def _highlight_trends_presets(active):
     prevent_initial_call=True,
 )
 def _update_scatter_active(*args):
+    """Callback: track active scatter preset index."""
     *_, current = args
     idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "scatter")
     return None if current == idx else idx
@@ -2065,6 +2111,7 @@ def _update_scatter_active(*args):
     Input("scatter-active-preset", "data"),
 )
 def _highlight_scatter_presets(active):
+    """Callback: highlight active scatter preset button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_SCATTER)]
 
 
@@ -2075,6 +2122,7 @@ def _highlight_scatter_presets(active):
     prevent_initial_call=True,
 )
 def _update_anim_active(*args):
+    """Callback: track active animated scatter preset index."""
     *_, current = args
     idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "anim")
     return None if current == idx else idx
@@ -2085,6 +2133,7 @@ def _update_anim_active(*args):
     Input("anim-active-preset", "data"),
 )
 def _highlight_anim_presets(active):
+    """Callback: highlight active animated scatter preset button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_ANIM)]
 
 

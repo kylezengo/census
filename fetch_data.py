@@ -1,7 +1,6 @@
 """Download data files from GCS before app startup."""
 
 import os
-import sys
 from google.cloud import storage
 
 BUCKET = os.environ["GCS_BUCKET"]
@@ -19,11 +18,31 @@ FILES = [
     "state_name.csv",
     "zcta_to_dma.csv",
     # Shapefiles (all sidecar files required by geopandas)
-    "state_geom.shp", "state_geom.shx", "state_geom.dbf", "state_geom.prj", "state_geom.cpg",
-    "county_geom.shp", "county_geom.shx", "county_geom.dbf", "county_geom.prj", "county_geom.cpg",
-    "zcta_geom.shp", "zcta_geom.shx", "zcta_geom.dbf", "zcta_geom.prj", "zcta_geom.cpg",
-    "tract_geom.shp", "tract_geom.shx", "tract_geom.dbf", "tract_geom.prj", "tract_geom.cpg",
-    "block_group_geom.shp", "block_group_geom.shx", "block_group_geom.dbf", "block_group_geom.prj", "block_group_geom.cpg",
+    "state_geom.shp",
+    "state_geom.shx",
+    "state_geom.dbf",
+    "state_geom.prj",
+    "state_geom.cpg",
+    "county_geom.shp",
+    "county_geom.shx",
+    "county_geom.dbf",
+    "county_geom.prj",
+    "county_geom.cpg",
+    "zcta_geom.shp",
+    "zcta_geom.shx",
+    "zcta_geom.dbf",
+    "zcta_geom.prj",
+    "zcta_geom.cpg",
+    "tract_geom.shp",
+    "tract_geom.shx",
+    "tract_geom.dbf",
+    "tract_geom.prj",
+    "tract_geom.cpg",
+    "block_group_geom.shp",
+    "block_group_geom.shx",
+    "block_group_geom.dbf",
+    "block_group_geom.prj",
+    "block_group_geom.cpg",
 ]
 
 client = storage.Client()
