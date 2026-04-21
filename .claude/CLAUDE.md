@@ -1,0 +1,3 @@
+- Don't leave this repository/ folder unless you have explicit permission.
+- Ask questions rather than assume.
+- Push back if you think I'm making a bad decision.
