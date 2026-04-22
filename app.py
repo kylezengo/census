@@ -89,8 +89,14 @@ zcta_geom = zcta_geom_raw.merge(
 tract_geom = tract_geom_raw[["GEOID", "geometry"]]
 block_group_geom = block_group_geom_raw[["GEOID", "geometry"]]
 congressional_district_geom = congressional_district_geom_raw[["GEOID", "geometry"]].set_index("GEOID")
+congressional_district_geom_json = congressional_district_geom.to_json()
 
 # Pre-compute GeoJSON per state/city at startup to avoid re-serializing on every callback
+county_geom_by_state = {
+    fips: county_geom[county_geom.index.str[:2] == fips].to_json()
+    for fips in state_name["state"].unique()
+}
+
 tract_geom_by_state = {
     fips: tract_geom[tract_geom["GEOID"].str[:2] == fips].set_index("GEOID").to_json()
     for fips in state_name["state"].unique()
@@ -235,24 +241,17 @@ SUGGESTED_TRENDS = [
         "inflate": ["inflate"],
     },
     {
-        "label": "Sun Belt Boom",
+        "label": "NYC",
         "geo_level": "County",
         "geo": [
-            "Travis County, Texas",
-            "Maricopa County, Arizona",
-            "Davidson County, Tennessee",
-            "Mecklenburg County, North Carolina",
-            "Wake County, North Carolina",
+            "New York County, New York",
+            "Kings County, New York",
+            "Queens County, New York",
+            "Bronx County, New York",
+            "Richmond County, New York",
         ],
-        "metric": "Pop",
-        "inflate": [],
-    },
-    {
-        "label": "Renter Nation",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Florida", "Texas", "Colorado"],
-        "metric": "pct_renter_occupied",
-        "inflate": [],
+        "metric": "Median Household Income",
+        "inflate": ["inflate"],
     },
 ]
 
@@ -337,18 +336,6 @@ CORR_GEOS = {
 }
 
 CORR_METRIC_GROUPS = {
-    "Key Metrics": [
-        "pct_white_nh",
-        "pct_black",
-        "pct_hispanic",
-        "pct_asian",
-        "pct_poverty",
-        "pct_unemployed",
-        "pct_bachelors_plus",
-        "pct_owner_occupied",
-        "Household Income 200+_ratio",
-        "pct_male",
-    ],
     "Demographics": [
         "pct_white_nh",
         "pct_black",
@@ -463,15 +450,7 @@ SUGGESTED_SCATTERS = [
         "x": "Median Household Income",
         "y": "Pop",
         "color": "Household Income 200+_ratio",
-        "size": "Pop",
-    },
-    {
-        "label": "Asian American Markets",
-        "geo": "County",
-        "x": "pct_asian",
-        "y": "Median Household Income",
-        "color": "pct_bachelors_plus",
-        "size": "Pop",
+        "size": None,
     },
 ]
 
@@ -612,11 +591,12 @@ _PCT_METRICS = {"Household Income 200+_ratio"}
 
 
 def _axis_fmt(metric):
+    label = {"title": _metric_label(metric)}
     if metric in CPI_COLS:
-        return {"tickprefix": "$", "tickformat": ",.0f"}
+        return {**label, "tickprefix": "$", "tickformat": ",.0f"}
     if metric.startswith("pct_") or metric in _PCT_METRICS:
-        return {"tickformat": ".0%"}
-    return {}
+        return {**label, "tickformat": ".0%"}
+    return label
 
 
 def _hover_fmt(metric):
@@ -689,10 +669,11 @@ app.layout = html.Div(
         dcc.Store(id="trends-active-preset", data=None),
         dcc.Store(id="scatter-active-preset", data=None),
         dcc.Store(id="anim-active-preset", data=None),
+        dcc.Store(id="corr-active-group", data=None),
         dcc.Tabs(
             [
                 dcc.Tab(
-                    label="States",
+                    label="US Map",
                     style=_tab_style,
                     selected_style=_tab_style,
                     children=[
@@ -701,21 +682,131 @@ app.layout = html.Div(
                                 html.Div(
                                     [
                                         html.Label(
-                                            "Select Metrics",
-                                            style={
-                                                "fontFamily": "Arial",
-                                                "fontWeight": "bold",
-                                            },
+                                            "Geography Level",
+                                            style={"fontWeight": "bold"},
                                         ),
                                         dcc.Dropdown(
-                                            id="state-metric-selector",
+                                            id="us-map-geo-selector",
+                                            options=[
+                                                {"label": "State", "value": "State"},
+                                                {"label": "DMA", "value": "DMA"},
+                                                {"label": "Congressional District", "value": "Congressional District"},
+                                            ],
+                                            value="State",
+                                            multi=False,
+                                            clearable=False,
+                                        ),
+                                        html.Label(
+                                            "Select Metrics",
+                                            style={"fontWeight": "bold", "marginTop": "12px"},
+                                        ),
+                                        dcc.Dropdown(
+                                            id="us-map-metric-selector",
                                             options=_make_options(state_metric_cols),
                                             value=[DEFAULT_VAR],
                                             multi=True,
                                             placeholder="Select metrics...",
-                                            style={"fontFamily": "Arial"},
                                         ),
-                                        _normalize_checkbox("state-normalize"),
+                                        _normalize_checkbox("us-map-normalize"),
+                                        dcc.Checklist(
+                                            id="us-map-exclude-pr",
+                                            options=[{"label": "  Exclude Puerto Rico", "value": "exclude"}],
+                                            value=[],
+                                            inline=True,
+                                            style={"fontFamily": "Arial", "marginTop": "8px"},
+                                        ),
+                                    ],
+                                    style={
+                                        "fontFamily": "Arial",
+                                        "width": "300px",
+                                        "padding": "20px",
+                                        "flexShrink": 0,
+                                    },
+                                ),
+                                html.Div(
+                                    [
+                                        html.Iframe(
+                                            id="us_map", width="100%", height="700"
+                                        )
+                                    ],
+                                    style={"flexGrow": 1, "padding": "20px"},
+                                ),
+                            ],
+                            style={"display": "flex", "alignItems": "flex-start"},
+                        )
+                    ],
+                ),
+                dcc.Tab(
+                    label="State Map",
+                    style=_tab_style,
+                    selected_style=_tab_style,
+                    children=[
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Label(
+                                            "Geography Level",
+                                            style={"fontWeight": "bold"},
+                                        ),
+                                        dcc.Dropdown(
+                                            id="state-map-geo",
+                                            options=[
+                                                {"label": "County", "value": "County"},
+                                                {"label": "Tract", "value": "Tract"},
+                                            ],
+                                            value="County",
+                                            multi=False,
+                                            clearable=False,
+                                        ),
+                                        html.Label(
+                                            "Select Metrics",
+                                            style={"fontWeight": "bold", "marginTop": "12px"},
+                                        ),
+                                        dcc.Dropdown(
+                                            id="state-map-metric",
+                                            options=_make_options(county_metric_cols),
+                                            value=[DEFAULT_VAR],
+                                            multi=True,
+                                            placeholder="Select metrics...",
+                                        ),
+                                        _normalize_checkbox("state-map-normalize"),
+                                        html.Label(
+                                            "Select State", style={"fontWeight": "bold"}
+                                        ),
+                                        dcc.Dropdown(
+                                            id="state-map-state",
+                                            options=states,
+                                            value="New York",
+                                            multi=False,
+                                            placeholder="Select State...",
+                                        ),
+                                        html.Div(
+                                            id="state-map-tract-filters",
+                                            children=[
+                                                html.Label(
+                                                    "Exclude GEOIDs",
+                                                    style={"fontWeight": "bold"},
+                                                ),
+                                                dcc.Dropdown(
+                                                    id="state-map-exclude",
+                                                    options=[],
+                                                    multi=True,
+                                                    placeholder="Select GEOIDs to exclude...",
+                                                ),
+                                                html.Label(
+                                                    "Minimum Population",
+                                                    style={"fontWeight": "bold"},
+                                                ),
+                                                dcc.Input(
+                                                    id="state-map-pop-min",
+                                                    type="number",
+                                                    value=0,
+                                                    min=0,
+                                                    step=1,
+                                                ),
+                                            ],
+                                        ),
                                     ],
                                     style={
                                         "fontFamily": "Arial",
@@ -728,98 +819,6 @@ app.layout = html.Div(
                                     [
                                         html.Iframe(
                                             id="state_map", width="100%", height="700"
-                                        )
-                                    ],
-                                    style={"flexGrow": 1, "padding": "20px"},
-                                ),
-                            ],
-                            style={"display": "flex", "alignItems": "flex-start"},
-                        )
-                    ],
-                ),
-                dcc.Tab(
-                    label="DMAs",
-                    style=_tab_style,
-                    selected_style=_tab_style,
-                    children=[
-                        html.Div(
-                            [
-                                html.Div(
-                                    [
-                                        html.Label(
-                                            "Select Metrics",
-                                            style={
-                                                "fontFamily": "Arial",
-                                                "fontWeight": "bold",
-                                            },
-                                        ),
-                                        dcc.Dropdown(
-                                            id="dma-metric-selector",
-                                            options=_make_options(dma_metric_cols),
-                                            value=[DEFAULT_VAR],
-                                            multi=True,
-                                            placeholder="Select metrics...",
-                                            style={"fontFamily": "Arial"},
-                                        ),
-                                        _normalize_checkbox("dma-normalize"),
-                                    ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
-                                ),
-                                html.Div(
-                                    [
-                                        html.Iframe(
-                                            id="dma_map", width="100%", height="700"
-                                        )
-                                    ],
-                                    style={"flexGrow": 1, "padding": "20px"},
-                                ),
-                            ],
-                            style={"display": "flex", "alignItems": "flex-start"},
-                        )
-                    ],
-                ),
-                dcc.Tab(
-                    label="Counties",
-                    style=_tab_style,
-                    selected_style=_tab_style,
-                    children=[
-                        html.Div(
-                            [
-                                html.Div(
-                                    [
-                                        html.Label(
-                                            "Select Metrics",
-                                            style={
-                                                "fontFamily": "Arial",
-                                                "fontWeight": "bold",
-                                            },
-                                        ),
-                                        dcc.Dropdown(
-                                            id="county-metric-selector",
-                                            options=_make_options(county_metric_cols),
-                                            value=[DEFAULT_VAR],
-                                            multi=True,
-                                            placeholder="Select metrics...",
-                                            style={"fontFamily": "Arial"},
-                                        ),
-                                        _normalize_checkbox("county-normalize"),
-                                    ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
-                                ),
-                                html.Div(
-                                    [
-                                        html.Iframe(
-                                            id="county_map", width="100%", height="700"
                                         )
                                     ],
                                     style={"flexGrow": 1, "padding": "20px"},
@@ -883,79 +882,6 @@ app.layout = html.Div(
                                     [
                                         html.Iframe(
                                             id="zcta_map", width="100%", height="700"
-                                        )
-                                    ],
-                                    style={"flexGrow": 1, "padding": "20px"},
-                                ),
-                            ],
-                            style={"display": "flex", "alignItems": "flex-start"},
-                        )
-                    ],
-                ),
-                dcc.Tab(
-                    label="Tracts",
-                    style=_tab_style,
-                    selected_style=_tab_style,
-                    children=[
-                        html.Div(
-                            [
-                                html.Div(
-                                    [
-                                        html.Label(
-                                            "Select Metrics",
-                                            style={"fontWeight": "bold"},
-                                        ),
-                                        dcc.Dropdown(
-                                            id="tract-metric-selector",
-                                            options=_make_options(tract_metric_cols),
-                                            value=[DEFAULT_VAR],
-                                            multi=True,
-                                            placeholder="Select metrics...",
-                                        ),
-                                        _normalize_checkbox("tract-normalize"),
-                                        html.Label(
-                                            "Select State", style={"fontWeight": "bold"}
-                                        ),
-                                        dcc.Dropdown(
-                                            id="state-selector",
-                                            options=states,
-                                            value="New York",
-                                            multi=False,
-                                            placeholder="Select State...",
-                                        ),
-                                        html.Label(
-                                            "Exclude GEOIDs",
-                                            style={"fontWeight": "bold"},
-                                        ),
-                                        dcc.Dropdown(
-                                            id="tract-exclude",
-                                            options=[],
-                                            multi=True,
-                                            placeholder="Select GEOIDs to exclude...",
-                                        ),
-                                        html.Label(
-                                            "Minimum Population",
-                                            style={"fontWeight": "bold"},
-                                        ),
-                                        dcc.Input(
-                                            id="tract-pop-min",
-                                            type="number",
-                                            value=0,
-                                            min=0,
-                                            step=1,
-                                        ),
-                                    ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
-                                ),
-                                html.Div(
-                                    [
-                                        html.Iframe(
-                                            id="tract_map", width="100%", height="700"
                                         )
                                     ],
                                     style={"flexGrow": 1, "padding": "20px"},
@@ -1033,60 +959,6 @@ app.layout = html.Div(
                                             id="block_group_map",
                                             width="100%",
                                             height="700",
-                                        )
-                                    ],
-                                    style={"flexGrow": 1, "padding": "20px"},
-                                ),
-                            ],
-                            style={"display": "flex", "alignItems": "flex-start"},
-                        )
-                    ],
-                ),
-                dcc.Tab(
-                    label="Congressional Districts",
-                    style=_tab_style,
-                    selected_style=_tab_style,
-                    children=[
-                        html.Div(
-                            [
-                                html.Div(
-                                    [
-                                        html.Label(
-                                            "Select Metrics",
-                                            style={"fontWeight": "bold"},
-                                        ),
-                                        dcc.Dropdown(
-                                            id="cd-metric-selector",
-                                            options=_make_options(
-                                                congressional_district_metric_cols
-                                            ),
-                                            value=[DEFAULT_VAR],
-                                            multi=True,
-                                            placeholder="Select metrics...",
-                                        ),
-                                        _normalize_checkbox("cd-normalize"),
-                                        html.Label(
-                                            "Select State", style={"fontWeight": "bold"}
-                                        ),
-                                        dcc.Dropdown(
-                                            id="cd-state-selector",
-                                            options=states,
-                                            value="New York",
-                                            multi=False,
-                                            placeholder="Select State...",
-                                        ),
-                                    ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
-                                ),
-                                html.Div(
-                                    [
-                                        html.Iframe(
-                                            id="cd_map", width="100%", height="700"
                                         )
                                     ],
                                     style={"flexGrow": 1, "padding": "20px"},
@@ -1302,6 +1174,15 @@ app.layout = html.Div(
                                             placeholder="None",
                                         ),
                                         _inflate_checkbox("anim-inflate"),
+                                        html.P(
+                                            "ACS 5-Year Estimates (rolling average). "
+                                            "Each point represents a 5-year window.",
+                                            style={
+                                                "fontSize": "11px",
+                                                "color": "#888",
+                                                "marginTop": "16px",
+                                            },
+                                        ),
                                     ],
                                     style={
                                         "fontFamily": "Arial",
@@ -1493,7 +1374,7 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.Span(
-                                    "Metric Groups: ",
+                                    "Suggested: ",
                                     style={
                                         "fontFamily": "Arial",
                                         "fontWeight": "bold",
@@ -1539,7 +1420,7 @@ app.layout = html.Div(
                                         dcc.Dropdown(
                                             id="corr-metrics",
                                             options=_make_options(county_metric_cols),
-                                            value=CORR_METRIC_GROUPS["Key Metrics"],
+                                            value=CORR_METRIC_GROUPS[next(iter(CORR_METRIC_GROUPS))],
                                             multi=True,
                                             placeholder="Select metrics...",
                                         ),
@@ -1619,27 +1500,32 @@ def _build_choropleth_map(
     return m.get_root().render()
 
 
-def generate_state_map(selected_metrics, normalize=False):
+def generate_state_map(selected_metrics, normalize=False, exclude_pr=False):
     """Render state choropleth map."""
     df = _normalize_df(c_state, selected_metrics) if normalize else c_state
+    if exclude_pr:
+        df = df[df["state"] != "Puerto Rico"]
     return _build_choropleth_map(
         state_geom_json, df, "state", "State", selected_metrics
     )
 
 
-def generate_dma_map(selected_metrics, normalize=False):
+def generate_dma_map(selected_metrics, normalize=False, exclude_pr=False):
     """Render DMA choropleth map."""
     df = _normalize_df(c_dma, selected_metrics) if normalize else c_dma
     return _build_choropleth_map(dma_geom_json, df, "dma", "DMA", selected_metrics)
 
 
-def generate_county_map(selected_metrics, normalize=False):
-    """Render county choropleth map."""
-    df = (
-        _normalize_df(c_county_state, selected_metrics) if normalize else c_county_state
-    )
+def generate_county_map(selected_metrics, selected_state, normalize=False):
+    """Render county choropleth map for a single state."""
+    state_fips = state_name.loc[
+        state_name["state_NAME"] == selected_state, "state"
+    ].values[0]
+    df = c_county_state.loc[c_county_state["GEOID"].str[:2] == state_fips].reset_index(drop=True)
+    if normalize:
+        df = _normalize_df(df, selected_metrics)
     return _build_choropleth_map(
-        county_geom_json, df, "GEOID", "County", selected_metrics, name_col="NAME"
+        county_geom_by_state[state_fips], df, "GEOID", "County", selected_metrics, name_col="NAME"
     )
 
 
@@ -1707,20 +1593,13 @@ def generate_block_group_map(
     )
 
 
-def generate_congressional_district_map(selected_metrics, selected_state, normalize=False):
-    """Render congressional district choropleth map for a single state."""
-    state_fips = state_name.loc[
-        state_name["state_NAME"] == selected_state, "state"
-    ].values[0]
-
-    df = c_congressional_district.loc[
-        c_congressional_district["GEOID"].str[:2] == state_fips
-    ].reset_index(drop=True)
-    if normalize:
-        df = _normalize_df(df, selected_metrics)
-
+def generate_congressional_district_map(selected_metrics, normalize=False, exclude_pr=False):
+    """Render congressional district choropleth map for the full US."""
+    df = _normalize_df(c_congressional_district, selected_metrics) if normalize else c_congressional_district
+    if exclude_pr:
+        df = df[df["GEOID"].str[:2] != "72"]
     return _build_choropleth_map(
-        congressional_district_geom_by_state[state_fips],
+        congressional_district_geom_json,
         df,
         "GEOID",
         "Congressional District",
@@ -1732,34 +1611,95 @@ def generate_congressional_district_map(selected_metrics, selected_state, normal
 # Callbacks ########################################################################################
 
 
+_US_MAP_GEOS = {
+    "State": (state_metric_cols, generate_state_map),
+    "DMA": (dma_metric_cols, generate_dma_map),
+    "Congressional District": (congressional_district_metric_cols, generate_congressional_district_map),
+}
+
+
+@app.callback(
+    Output("us-map-metric-selector", "options"),
+    Output("us-map-metric-selector", "value"),
+    Input("us-map-geo-selector", "value"),
+)
+def update_us_map_metric_options(geo):
+    """Callback: update metric options when US map geography level changes."""
+    cols, _ = _US_MAP_GEOS[geo]
+    return _make_options(cols), [DEFAULT_VAR]
+
+
+@app.callback(
+    Output("us_map", "srcDoc"),
+    Input("us-map-metric-selector", "value"),
+    Input("us-map-geo-selector", "value"),
+    Input("us-map-normalize", "value"),
+    Input("us-map-exclude-pr", "value"),
+)
+def update_us_map(metrics, geo, normalize, exclude_pr):
+    """Callback: render US map for selected geography level."""
+    _, generate_fn = _US_MAP_GEOS[geo]
+    return generate_fn(metrics, bool(normalize), exclude_pr=bool(exclude_pr))
+
+
+_STATE_MAP_GEOS = {
+    "County": (county_metric_cols, generate_county_map),
+    "Tract": (tract_metric_cols, generate_tract_map),
+}
+
+
+@app.callback(
+    Output("state-map-metric", "options"),
+    Output("state-map-metric", "value"),
+    Input("state-map-geo", "value"),
+)
+def update_state_map_metric_options(geo):
+    """Callback: update metric options when state map geography level changes."""
+    cols, _ = _STATE_MAP_GEOS[geo]
+    return _make_options(cols), [DEFAULT_VAR]
+
+
+@app.callback(
+    Output("state-map-tract-filters", "style"),
+    Input("state-map-geo", "value"),
+)
+def toggle_state_map_tract_filters(geo):
+    """Callback: show tract-only filters only when Tract is selected."""
+    return {"display": "block"} if geo == "Tract" else {"display": "none"}
+
+
+@app.callback(
+    Output("state-map-exclude", "options"),
+    Output("state-map-exclude", "value"),
+    Input("state-map-geo", "value"),
+    Input("state-map-state", "value"),
+)
+def update_state_map_exclude_options(geo, selected_state):
+    """Callback: populate exclude dropdown based on geo level and state."""
+    state_fips = state_name.loc[
+        state_name["state_NAME"] == selected_state, "state"
+    ].values[0]
+    if geo == "Tract":
+        options = sorted(c_tract.loc[c_tract["GEOID"].str[:2] == state_fips, "GEOID"].unique())
+    else:
+        options = sorted(c_county_state.loc[c_county_state["GEOID"].str[:2] == state_fips, "GEOID"].unique())
+    return options, []
+
+
 @app.callback(
     Output("state_map", "srcDoc"),
-    Input("state-metric-selector", "value"),
-    Input("state-normalize", "value"),
+    Input("state-map-metric", "value"),
+    Input("state-map-geo", "value"),
+    Input("state-map-state", "value"),
+    Input("state-map-pop-min", "value"),
+    Input("state-map-exclude", "value"),
+    Input("state-map-normalize", "value"),
 )
-def update_state_map(metrics, normalize):
-    """Callback: update state map."""
-    return generate_state_map(metrics, bool(normalize))
-
-
-@app.callback(
-    Output("dma_map", "srcDoc"),
-    Input("dma-metric-selector", "value"),
-    Input("dma-normalize", "value"),
-)
-def update_dma_map(metrics, normalize):
-    """Callback: update DMA map."""
-    return generate_dma_map(metrics, bool(normalize))
-
-
-@app.callback(
-    Output("county_map", "srcDoc"),
-    Input("county-metric-selector", "value"),
-    Input("county-normalize", "value"),
-)
-def update_county_map(metrics, normalize):
-    """Callback: update county map."""
-    return generate_county_map(metrics, bool(normalize))
+def update_state_map(metrics, geo, selected_state, pop_min, exclude, normalize):
+    """Callback: render county or tract map for selected state."""
+    if geo == "Tract":
+        return generate_tract_map(metrics, selected_state, pop_min, exclude, bool(normalize))
+    return generate_county_map(metrics, selected_state, bool(normalize))
 
 
 @app.callback(
@@ -1775,19 +1715,6 @@ def update_zcta_map(metrics, dma, pop_min, normalize):
 
 
 @app.callback(
-    Output("tract_map", "srcDoc"),
-    Input("tract-metric-selector", "value"),
-    Input("state-selector", "value"),
-    Input("tract-pop-min", "value"),
-    Input("tract-exclude", "value"),
-    Input("tract-normalize", "value"),
-)
-def update_tract_map(metrics, state, pop_min, exclude, normalize):
-    """Callback: update tract map."""
-    return generate_tract_map(metrics, state, pop_min, exclude, bool(normalize))
-
-
-@app.callback(
     Output("block_group_map", "srcDoc"),
     Input("block-group-metric-selector", "value"),
     Input("city-selector", "value"),
@@ -1798,26 +1725,6 @@ def update_tract_map(metrics, state, pop_min, exclude, normalize):
 def update_block_group_map(metrics, city, pop_min, exclude, normalize):
     """Callback: update block group map."""
     return generate_block_group_map(metrics, city, pop_min, exclude, bool(normalize))
-
-
-@app.callback(
-    Output("cd_map", "srcDoc"),
-    Input("cd-metric-selector", "value"),
-    Input("cd-state-selector", "value"),
-    Input("cd-normalize", "value"),
-)
-def update_cd_map(metrics, state, normalize):
-    """Callback: update congressional district map."""
-    return generate_congressional_district_map(metrics, state, bool(normalize))
-
-
-@app.callback(Output("tract-exclude", "options"), Input("state-selector", "value"))
-def update_tract_exclude_options(selected_state):
-    """Callback: populate tract exclude dropdown."""
-    state_fips = state_name.loc[
-        state_name["state_NAME"] == selected_state, "state"
-    ].values[0]
-    return sorted(c_tract.loc[c_tract["GEOID"].str[:2] == state_fips, "GEOID"].unique())
 
 
 @app.callback(Output("block-group-exclude", "options"), Input("city-selector", "value"))
@@ -2133,7 +2040,7 @@ def update_corr_options(geo_level, *_group_clicks):
         group_key = list(CORR_METRIC_GROUPS.keys())[idx]
         value = [m for m in CORR_METRIC_GROUPS[group_key] if m in cols]
     else:
-        value = [m for m in CORR_METRIC_GROUPS["Key Metrics"] if m in cols]
+        value = [m for m in CORR_METRIC_GROUPS[next(iter(CORR_METRIC_GROUPS))] if m in cols]
     return opts, value
 
 
@@ -2253,6 +2160,31 @@ def _update_anim_active(*args):
 def _highlight_anim_presets(active):
     """Callback: highlight active animated scatter preset button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_ANIM)]
+
+
+_N_CORR_GROUPS = len(CORR_METRIC_GROUPS)
+
+
+@app.callback(
+    Output("corr-active-group", "data"),
+    [Input(f"corr-group-{i}", "n_clicks") for i in range(_N_CORR_GROUPS)],
+    State("corr-active-group", "data"),
+    prevent_initial_call=True,
+)
+def _update_corr_active_group(*args):
+    """Callback: track active correlation group button index."""
+    *_, current = args
+    idx = int(callback_context.triggered[0]["prop_id"].split("-")[2].split(".")[0])
+    return None if current == idx else idx
+
+
+@app.callback(
+    [Output(f"corr-group-{i}", "style") for i in range(_N_CORR_GROUPS)],
+    Input("corr-active-group", "data"),
+)
+def _highlight_corr_groups(active):
+    """Callback: highlight active correlation group button."""
+    return [_btn_active_style if i == active else _btn_style for i in range(_N_CORR_GROUPS)]
 
 
 if __name__ == "__main__":
