@@ -2,6 +2,8 @@
 .ipynb_checkpoints
 *.csv
 !zip_to_dma.csv
+!dma_polygon_map.csv
+!dma_polygons.geojson
 *.txt
 !requirements.txt
 *.cpg
