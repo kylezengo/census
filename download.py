@@ -28,9 +28,7 @@ census_api_key = os.getenv("census_api_key")
 zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={"zcta": object})
 
 
-####################################################################################################
-########################################## DOWNLOAD DATA ###########################################
-####################################################################################################
+# --- DOWNLOAD DATA ---
 # Get variable options
 _log("Fetching variable definitions from Census API...")
 response = requests.get(
@@ -90,7 +88,7 @@ for g in groups:
             for chunk_i, start in enumerate(
                 range(0, len(vars_list), MAX_VARS_PER_CALL)
             ):
-                chunk = vars_list[start : start + MAX_VARS_PER_CALL]
+                chunk = vars_list[start:start + MAX_VARS_PER_CALL]
                 var_groups[f"{g}_chunk{chunk_i}"] = ",".join(chunk)
 
 _log(f"Variable groups: {len(var_groups)} groups, {len(metrics)} total metrics")
@@ -122,9 +120,9 @@ for level in geo_level:
             _log(f"  {level}: group {i}/{len(var_groups)} done ({len(data_df)} rows)")
 
     merged_df = var_dfs[0]
-    for df in var_dfs[1:]:
-        df = df[[c for c in df.columns if c in join_cols or c not in merged_df.columns]]
-        merged_df = merged_df.merge(df, how="outer", on=join_cols)
+    for chunk_df in var_dfs[1:]:
+        chunk_df = chunk_df[[c for c in chunk_df.columns if c in join_cols or c not in merged_df.columns]]
+        merged_df = merged_df.merge(chunk_df, how="outer", on=join_cols)
 
     dfs[level] = merged_df
     _log(
@@ -136,35 +134,35 @@ MAX_WORKERS = 5
 MAX_RETRIES = 3
 
 
-def _fetch_geo(for_clause, in_clause, join_cols):
+def _fetch_geo(for_clause, in_clause, merge_cols):
     """Fetch all variable groups for one geography unit, with retry on failure."""
-    var_dfs = []
-    for var_str in var_groups.values():
-        params = {
-            "get": f"NAME,{var_str}",
+    group_dfs = []
+    for group_var_str in var_groups.values():
+        req_params = {
+            "get": f"NAME,{group_var_str}",
             "for": for_clause,
             "in": in_clause,
             "key": census_api_key,
         }
         for attempt in range(MAX_RETRIES):
-            response = requests.get(ACS_URL, params=params, timeout=20)
-            if response.status_code == 200:
-                data = response.json()
-                var_dfs.append(pd.DataFrame(data[1:], columns=data[0]))
+            resp = requests.get(ACS_URL, params=req_params, timeout=20)
+            if resp.status_code == 200:
+                rows = resp.json()
+                group_dfs.append(pd.DataFrame(rows[1:], columns=rows[0]))
                 break
             if attempt < MAX_RETRIES - 1:
                 time.sleep(2**attempt)
             else:
                 print(
-                    f"Error {response.status_code} after {MAX_RETRIES} attempts: {response.text}"
+                    f"Error {resp.status_code} after {MAX_RETRIES} attempts: {resp.text}"
                 )
 
-    if not var_dfs:
+    if not group_dfs:
         return None
-    merged = var_dfs[0]
-    for df in var_dfs[1:]:
-        df = df[[c for c in df.columns if c in join_cols or c not in merged.columns]]
-        merged = merged.merge(df, how="outer", on=join_cols)
+    merged = group_dfs[0]
+    for grp_df in group_dfs[1:]:
+        grp_df = grp_df[[c for c in grp_df.columns if c in merge_cols or c not in merged.columns]]
+        merged = merged.merge(grp_df, how="outer", on=merge_cols)
     return merged
 
 
@@ -185,7 +183,8 @@ def _fetch_county_block_groups(state_fips, county):
 # tract ############################################################################################
 states = dfs["state"]["state"].unique()
 _log(
-    f"Fetching tracts for {len(states)} states ({len(var_groups)} groups each, {MAX_WORKERS} workers)..."
+    f"Fetching tracts for {len(states)} states "
+    f"({len(var_groups)} groups each, {MAX_WORKERS} workers)..."
 )
 with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
     futures = {executor.submit(_fetch_state_tracts, fips): fips for fips in states}
@@ -227,7 +226,8 @@ with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         if result is not None:
             block_group_dfs.append(result)
             _log(
-                f"  block groups: {i}/{len(county_pairs)} done (state {s} county {c}, {len(result)} block groups)"
+                f"  block groups: {i}/{len(county_pairs)} done "
+                f"(state {s} county {c}, {len(result)} block groups)"
             )
         else:
             _log(f"  block groups: WARNING — state {s} county {c} returned no data")
@@ -268,9 +268,7 @@ c_block_group["GEOID"] = (
     + c_block_group["block group"]
 )
 
-####################################################################################################
-############################################# CLEAN UP #############################################
-####################################################################################################
+# --- CLEAN UP ---
 _log("Cleaning up and computing derived metrics...")
 # Join ZCTA to DMA and create c_dma
 c_zcta = c_zcta.rename(columns={"zip code tabulation area": "zcta"})
@@ -292,10 +290,10 @@ def _clean_census_label(concept, label):
     if not isinstance(label, str):
         label = ""
 
-    def _scrub(s):
-        s = re.sub(r"!!", " ", s)
-        s = re.sub(r"[,:\$]", "", s)
-        return re.sub(r"\s+", " ", s).strip()
+    def _scrub(text):
+        text = re.sub(r"!!", " ", text)
+        text = re.sub(r"[,:\$]", "", text)
+        return re.sub(r"\s+", " ", text).strip()
 
     # Sex by Age — total population and all racial/ethnic subgroups (B01001, B01001A–I, etc.)
     m = re.match(r"Sex by Age\s*(?:\(([^)]*)\))?$", concept, re.IGNORECASE)
@@ -470,9 +468,7 @@ for name, df in zip(pop_df_names, pop_dfs):
 median_cols_to_drop = [c for c in c_dma.columns if "Median" in c]
 c_dma = c_dma.drop(columns=median_cols_to_drop)
 
-####################################################################################################
-############################################### SAVE ###############################################
-####################################################################################################
+# --- SAVE ---
 _log("Saving CSVs...")
 state_name.to_csv("state_name.csv", index=False)
 

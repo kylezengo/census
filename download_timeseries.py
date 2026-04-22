@@ -103,7 +103,7 @@ def _fetch_year(year, for_clause):
                 time.sleep(2**attempt)
             else:
                 _log(f"  {year} ERROR {r.status_code}: {r.text[:120]}")
-        except Exception as e:
+        except requests.RequestException as e:
             if attempt < MAX_RETRIES - 1:
                 time.sleep(2**attempt)
             else:
@@ -188,7 +188,7 @@ _log(
 
 # Save #########################################################################################
 ts_state.to_csv("c_timeseries_state.csv", index=False)
-_log(f"Saved c_timeseries_state.csv")
+_log("Saved c_timeseries_state.csv")
 ts_county.to_csv("c_timeseries_county.csv", index=False)
-_log(f"Saved c_timeseries_county.csv")
+_log("Saved c_timeseries_county.csv")
 _log(f"Done! Total time: {time.time() - _start:.0f}s")
