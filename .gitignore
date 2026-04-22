@@ -3,6 +3,7 @@
 *.csv
 !zip_to_dma.csv
 *.txt
+!requirements.txt
 *.cpg
 *.dbf
 *.prj
