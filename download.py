@@ -1,4 +1,4 @@
-""" Download census data"""
+"""Download ACS 5-year census data and save to CSV."""
 
 import os
 import re
@@ -48,7 +48,7 @@ zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={"zcta": object})
 # Get variable options
 _log("Fetching variable definitions from Census API...")
 response = requests.get(
-    "https://api.census.gov/data/2022/acs/acs5/variables.json", timeout=20
+    f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5/variables.json", timeout=20
 )
 variables_json = response.json()
 
@@ -109,6 +109,14 @@ for g in groups:
 
 _log(f"Variable groups: {len(var_groups)} groups, {len(metrics)} total metrics")
 
+def _merge_chunks(chunk_dfs, key_cols):
+    merged = chunk_dfs[0]
+    for chunk in chunk_dfs[1:]:
+        chunk = chunk[[c for c in chunk.columns if c in key_cols or c not in merged.columns]]
+        merged = merged.merge(chunk, how="outer", on=key_cols)
+    return merged
+
+
 # Make API calls for each geography level
 # Merge on FIPS identifiers (not NAME) to avoid silent mismatches if NAME strings differ
 geo_join_cols = {
@@ -135,14 +143,9 @@ for level in geo_level:
             var_dfs.append(data_df)
             _log(f"  {level}: group {i}/{len(var_groups)} done ({len(data_df)} rows)")
 
-    merged_df = var_dfs[0]
-    for chunk_df in var_dfs[1:]:
-        chunk_df = chunk_df[[c for c in chunk_df.columns if c in join_cols or c not in merged_df.columns]]
-        merged_df = merged_df.merge(chunk_df, how="outer", on=join_cols)
-
-    dfs[level] = merged_df
+    dfs[level] = _merge_chunks(var_dfs, join_cols)
     _log(
-        f"  {level}: complete ({len(merged_df)} rows, {len(merged_df.columns)} columns)"
+        f"  {level}: complete ({len(dfs[level])} rows, {len(dfs[level].columns)} columns)"
     )
 
 # Parallel download helpers ########################################################################
@@ -170,22 +173,16 @@ def _fetch_geo(for_clause, in_clause, merge_cols):
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(2**attempt)
                 else:
-                    print(
-                        f"Error {resp.status_code} after {MAX_RETRIES} attempts: {resp.text}"
-                    )
+                    _log(f"Error {resp.status_code} after {MAX_RETRIES} attempts: {resp.text}")
             except requests.exceptions.RequestException as e:
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(2**attempt)
                 else:
-                    print(f"Connection error after {MAX_RETRIES} attempts: {e}")
+                    _log(f"Connection error after {MAX_RETRIES} attempts: {e}")
 
     if not group_dfs:
         return None
-    merged = group_dfs[0]
-    for grp_df in group_dfs[1:]:
-        grp_df = grp_df[[c for c in grp_df.columns if c in merge_cols or c not in merged.columns]]
-        merged = merged.merge(grp_df, how="outer", on=merge_cols)
-    return merged
+    return _merge_chunks(group_dfs, merge_cols)
 
 
 def _fetch_state_tracts(state_fips):
@@ -295,28 +292,21 @@ _log(
 
 # build data frames ################################################################################
 _log("Building data frames...")
-c_state = dfs["state"]
-c_state = c_state.drop(columns="state")
-c_state = c_state.rename(columns={"NAME": "state"})
-
+c_state = dfs["state"].drop(columns="state").rename(columns={"NAME": "state"})
 c_county = dfs["county"]
-
 c_zcta = dfs["zip code tabulation area"]
 
 state_name = dfs["state"][["state", "NAME"]].rename(columns={"NAME": "state_NAME"})
 c_county_state = c_county.merge(state_name, how="left", on="state")
 c_county_state["GEOID"] = c_county_state["state"] + c_county_state["county"]
 
-#
 c_tract = dfs["tract"]
-
 c_tract["GEOID"] = (
     c_tract["state"]
     + c_tract["county"]
-    + c_tract["tract"].str.zfill(6)  # pad tract to 6 digits if needed
+    + c_tract["tract"].str.zfill(6)
 )
 
-#
 c_block_group = dfs["block group"]
 
 c_block_group["GEOID"] = (
@@ -337,7 +327,6 @@ c_congressional_district = c_congressional_district.merge(
 
 # --- CLEAN UP ---
 _log("Cleaning up and computing derived metrics...")
-# Join ZCTA to DMA and create c_dma
 c_zcta = c_zcta.rename(columns={"zip code tabulation area": "zcta"})
 
 c_zcta_dma = c_zcta.merge(zcta_to_dma, how="left", on="zcta")
@@ -493,9 +482,16 @@ pre_rename_derived = {
     },
 }
 
-pop_df_names = ["state", "dma", "county", "zcta", "tract", "block_group", "congressional_district"]
-pop_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_tract, c_block_group, c_congressional_district]
-for name, df in zip(pop_df_names, pop_dfs):
+_dfs_to_process = [
+    ("state", c_state),
+    ("dma", c_dma),
+    ("county", c_county_state),
+    ("zcta", c_zcta_dma),
+    ("tract", c_tract),
+    ("block_group", c_block_group),
+    ("congressional_district", c_congressional_district),
+]
+for name, df in _dfs_to_process:
     _log(f"  Computing derived metrics for {name} ({len(df)} rows)...")
     # Replace Census suppressed-value sentinel before any derived calculations
     available_metrics = [m for m in metrics if m in df.columns]

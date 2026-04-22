@@ -1,4 +1,4 @@
-"""Create an interactive plot in a browser window"""
+"""Census Data Explorer — interactive demographic visualization app."""
 
 import folium
 import geopandas as gpd
@@ -80,7 +80,6 @@ dma_geom = dma_geom[["DMA", "geometry"]].set_index("DMA")
 dma_geom_json = dma_geom.to_json()
 
 county_geom = county_geom_raw[["GEOID", "geometry"]].set_index("GEOID")
-county_geom_json = county_geom.to_json()
 
 zcta_geom = zcta_geom_raw.merge(
     zcta_to_dma[["zcta", "dma"]], how="left", left_on="ZCTA5CE20", right_on="zcta"
@@ -112,13 +111,6 @@ block_group_geom_by_city = {
     .set_index("GEOID")
     .to_json()
     for city, fips in _city_fips.items()
-}
-
-congressional_district_geom_by_state = {
-    fips: congressional_district_geom[
-        congressional_district_geom.index.str[:2] == fips
-    ].to_json()
-    for fips in state_name["state"].unique()
 }
 
 # Metric column lists ##########################################################################
@@ -622,12 +614,7 @@ def _trunc_colorscale(name, low=0.30):
 
 
 def _is_ratio(metric):
-    return (
-        metric.startswith("pct_")
-        or "_ratio" in metric
-        or "Median" in metric
-        or metric in ("Median Home Value", "Median Gross Rent")
-    )
+    return metric.startswith("pct_") or "_ratio" in metric or "Median" in metric
 
 
 def _normalize_df(df, metrics):
@@ -654,6 +641,11 @@ app = Dash(__name__)
 server = app.server  # for gunicorn
 
 _tab_style = {"fontFamily": "Arial"}
+_sidebar_style = {"fontFamily": "Arial", "width": "300px", "padding": "20px", "flexShrink": 0}
+_chart_style = {"flexGrow": 1, "padding": "20px"}
+_flex_row = {"display": "flex", "alignItems": "flex-start"}
+_bold = {"fontWeight": "bold"}
+_bold_mt = {"fontWeight": "bold", "marginTop": "12px"}
 
 app.layout = html.Div(
     [
@@ -675,7 +667,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Geography Level",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="us-map-geo-selector",
@@ -690,7 +682,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Select Metrics",
-                                            style={"fontWeight": "bold", "marginTop": "12px"},
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="us-map-metric-selector",
@@ -708,12 +700,7 @@ app.layout = html.Div(
                                             style={"fontFamily": "Arial", "marginTop": "8px"},
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -721,10 +708,10 @@ app.layout = html.Div(
                                             id="us_map", width="100%", height="700"
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "flex-start"},
+                            style=_flex_row,
                         )
                     ],
                 ),
@@ -739,7 +726,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Geography Level",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="state-map-geo",
@@ -753,7 +740,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Select Metrics",
-                                            style={"fontWeight": "bold", "marginTop": "12px"},
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="state-map-metric",
@@ -778,7 +765,7 @@ app.layout = html.Div(
                                             children=[
                                                 html.Label(
                                                     "Exclude GEOIDs",
-                                                    style={"fontWeight": "bold"},
+                                                    style=_bold,
                                                 ),
                                                 dcc.Dropdown(
                                                     id="state-map-exclude",
@@ -788,7 +775,7 @@ app.layout = html.Div(
                                                 ),
                                                 html.Label(
                                                     "Minimum Population",
-                                                    style={"fontWeight": "bold"},
+                                                    style=_bold,
                                                 ),
                                                 dcc.Input(
                                                     id="state-map-pop-min",
@@ -800,12 +787,7 @@ app.layout = html.Div(
                                             ],
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -813,10 +795,10 @@ app.layout = html.Div(
                                             id="state_map", width="100%", height="700"
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "flex-start"},
+                            style=_flex_row,
                         )
                     ],
                 ),
@@ -831,7 +813,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Select Metrics",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="zcta-metric-selector",
@@ -853,7 +835,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Minimum Population",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Input(
                                             id="zcta-pop-min",
@@ -863,12 +845,7 @@ app.layout = html.Div(
                                             step=1,
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -876,10 +853,10 @@ app.layout = html.Div(
                                             id="zcta_map", width="100%", height="700"
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "flex-start"},
+                            style=_flex_row,
                         )
                     ],
                 ),
@@ -894,7 +871,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Select Metrics",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="block-group-metric-selector",
@@ -918,7 +895,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Exclude GEOIDs",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="block-group-exclude",
@@ -928,7 +905,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Minimum Population",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Input(
                                             id="block-group-pop-min",
@@ -938,12 +915,7 @@ app.layout = html.Div(
                                             step=1,
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -953,10 +925,10 @@ app.layout = html.Div(
                                             height="700",
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "flex-start"},
+                            style=_flex_row,
                         )
                     ],
                 ),
@@ -1001,7 +973,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Geography Level",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="trends-geo-level",
@@ -1047,12 +1019,7 @@ app.layout = html.Div(
                                             },
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -1060,10 +1027,10 @@ app.layout = html.Div(
                                             id="trends-chart", style={"height": "700px"}
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "flex-start"},
+                            style=_flex_row,
                         ),
                     ],
                 ),
@@ -1103,7 +1070,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Geography Level",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="anim-geo-level",
@@ -1176,12 +1143,7 @@ app.layout = html.Div(
                                             },
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -1190,10 +1152,10 @@ app.layout = html.Div(
                                             style={"height": "700px"},
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "flex-start"},
+                            style=_flex_row,
                         ),
                     ],
                 ),
@@ -1238,7 +1200,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Geography Level",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="scatter-geo",
@@ -1334,12 +1296,7 @@ app.layout = html.Div(
                                             style={"marginTop": "4px"},
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -1348,7 +1305,7 @@ app.layout = html.Div(
                                             style={"height": "700px"},
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
                             style={
@@ -1394,7 +1351,7 @@ app.layout = html.Div(
                                     [
                                         html.Label(
                                             "Geography Level",
-                                            style={"fontWeight": "bold"},
+                                            style=_bold,
                                         ),
                                         dcc.Dropdown(
                                             id="corr-geo-level",
@@ -1417,12 +1374,7 @@ app.layout = html.Div(
                                             placeholder="Select metrics...",
                                         ),
                                     ],
-                                    style={
-                                        "fontFamily": "Arial",
-                                        "width": "300px",
-                                        "padding": "20px",
-                                        "flexShrink": 0,
-                                    },
+                                    style=_sidebar_style,
                                 ),
                                 html.Div(
                                     [
@@ -1430,10 +1382,10 @@ app.layout = html.Div(
                                             id="corr-matrix", style={"height": "700px"}
                                         )
                                     ],
-                                    style={"flexGrow": 1, "padding": "20px"},
+                                    style=_chart_style,
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "flex-start"},
+                            style=_flex_row,
                         ),
                     ],
                 ),
@@ -1503,7 +1455,7 @@ def generate_state_map(selected_metrics, normalize=False, exclude_pr=False):
 
 
 def generate_dma_map(selected_metrics, normalize=False, exclude_pr=False):
-    """Render DMA choropleth map."""
+    _ = exclude_pr  # DMAs never include PR; parameter exists for dispatch compatibility
     df = _normalize_df(c_dma, selected_metrics) if normalize else c_dma
     return _build_choropleth_map(dma_geom_json, df, "dma", "DMA", selected_metrics)
 
@@ -1616,7 +1568,6 @@ _US_MAP_GEOS = {
     Input("us-map-geo-selector", "value"),
 )
 def update_us_map_metric_options(geo):
-    """Callback: update metric options when US map geography level changes."""
     cols, _ = _US_MAP_GEOS[geo]
     return _make_options(cols), [DEFAULT_VAR]
 
@@ -1629,7 +1580,6 @@ def update_us_map_metric_options(geo):
     Input("us-map-exclude-pr", "value"),
 )
 def update_us_map(metrics, geo, normalize, exclude_pr):
-    """Callback: render US map for selected geography level."""
     _, generate_fn = _US_MAP_GEOS[geo]
     return generate_fn(metrics, bool(normalize), exclude_pr=bool(exclude_pr))
 
@@ -1646,7 +1596,6 @@ _STATE_MAP_GEOS = {
     Input("state-map-geo", "value"),
 )
 def update_state_map_metric_options(geo):
-    """Callback: update metric options when state map geography level changes."""
     cols, _ = _STATE_MAP_GEOS[geo]
     return _make_options(cols), [DEFAULT_VAR]
 
@@ -1656,7 +1605,6 @@ def update_state_map_metric_options(geo):
     Input("state-map-geo", "value"),
 )
 def toggle_state_map_tract_filters(geo):
-    """Callback: show tract-only filters only when Tract is selected."""
     return {"display": "block"} if geo == "Tract" else {"display": "none"}
 
 
@@ -1667,7 +1615,6 @@ def toggle_state_map_tract_filters(geo):
     Input("state-map-state", "value"),
 )
 def update_state_map_exclude_options(geo, selected_state):
-    """Callback: populate exclude dropdown based on geo level and state."""
     state_fips = state_name.loc[
         state_name["state_NAME"] == selected_state, "state"
     ].values[0]
@@ -1688,7 +1635,6 @@ def update_state_map_exclude_options(geo, selected_state):
     Input("state-map-normalize", "value"),
 )
 def update_state_map(metrics, geo, selected_state, pop_min, exclude, normalize):
-    """Callback: render county or tract map for selected state."""
     if geo == "Tract":
         return generate_tract_map(metrics, selected_state, pop_min, exclude, bool(normalize))
     return generate_county_map(metrics, selected_state, bool(normalize))
@@ -1702,7 +1648,6 @@ def update_state_map(metrics, geo, selected_state, pop_min, exclude, normalize):
     Input("zcta-normalize", "value"),
 )
 def update_zcta_map(metrics, dma, pop_min, normalize):
-    """Callback: update ZCTA map."""
     return generate_zcta_map(metrics, dma, pop_min, bool(normalize))
 
 
@@ -1715,13 +1660,11 @@ def update_zcta_map(metrics, dma, pop_min, normalize):
     Input("block-group-normalize", "value"),
 )
 def update_block_group_map(metrics, city, pop_min, exclude, normalize):
-    """Callback: update block group map."""
     return generate_block_group_map(metrics, city, pop_min, exclude, bool(normalize))
 
 
 @app.callback(Output("block-group-exclude", "options"), Input("city-selector", "value"))
 def update_block_group_exclude_options(selected_city):
-    """Callback: populate block group exclude dropdown."""
     return sorted(
         c_block_group.loc[
             c_block_group["GEOID"].str[:5].isin(_city_fips[selected_city]), "GEOID"
@@ -1739,7 +1682,6 @@ def update_block_group_exclude_options(selected_city):
     prevent_initial_call=True,
 )
 def load_scatter_preset(*_):
-    """Callback: load scatter preset values."""
     triggered_id = callback_context.triggered[0]["prop_id"]
     idx = int(triggered_id.split("-")[2].split(".")[0])
     s = SUGGESTED_SCATTERS[idx]
@@ -1754,7 +1696,6 @@ def load_scatter_preset(*_):
     Input("scatter-geo", "value"),
 )
 def update_scatter_options(geo):
-    """Callback: update scatter dropdown options when geo changes."""
     _, _, cols = SCATTER_GEOS[geo]
     opts = _make_options(cols)
     return opts, opts, opts, opts
@@ -1768,7 +1709,6 @@ def update_scatter_options(geo):
     Input("scatter-geo", "value"),
 )
 def update_scatter_filter_options(geo):
-    """Callback: update scatter filter dropdown based on geo level."""
     if geo == "County":
         opts = sorted(c_county_state["state_NAME"].dropna().unique())
         return "Filter by State", [{"label": o, "value": o} for o in opts], [], False
@@ -1791,7 +1731,6 @@ def update_scatter_filter_options(geo):
 def update_scatter(
     geo, x_metric, y_metric, color_metric, size_metric, show_trendline, filter_vals
 ):
-    """Callback: render scatter plot."""
     if not x_metric or not y_metric:
         return px.scatter()
 
@@ -1884,7 +1823,6 @@ def update_scatter(
     prevent_initial_call=True,
 )
 def load_anim_preset(*_):
-    """Callback: load animated scatter preset values."""
     triggered_id = callback_context.triggered[0]["prop_id"]
     idx = int(triggered_id.split("-")[2].split(".")[0])
     s = SUGGESTED_ANIM_SCATTERS[idx]
@@ -1903,7 +1841,6 @@ def load_anim_preset(*_):
 def update_anim_scatter(
     geo_level, x_metric, y_metric, color_metric, size_metric, inflate
 ):
-    """Callback: render animated scatter plot."""
     if not x_metric or not y_metric:
         return px.scatter()
 
@@ -1961,7 +1898,6 @@ def update_anim_scatter(
 
 @app.callback(Output("trends-geo", "options"), Input("trends-geo-level", "value"))
 def update_trends_geo_options(geo_level):
-    """Callback: populate geography dropdown for trends tab."""
     df, name_col = TIMESERIES_GEOS[geo_level]
     return sorted(df[name_col].unique())
 
@@ -1975,7 +1911,6 @@ def update_trends_geo_options(geo_level):
     prevent_initial_call=True,
 )
 def load_trends_preset(*_):
-    """Callback: load trends preset values."""
     triggered_id = callback_context.triggered[0]["prop_id"]
     idx = int(triggered_id.split("-")[2].split(".")[0])
     s = SUGGESTED_TRENDS[idx]
@@ -1990,7 +1925,6 @@ def load_trends_preset(*_):
     Input("trends-inflate", "value"),
 )
 def update_trends_chart(geo_level, geo_names, metric, inflate):
-    """Callback: render trends line chart."""
     if not geo_names or not metric:
         return px.line()
     df, name_col = TIMESERIES_GEOS[geo_level]
@@ -2023,7 +1957,6 @@ def update_trends_chart(geo_level, geo_names, metric, inflate):
     [Input(f"corr-group-{i}", "n_clicks") for i in range(len(CORR_METRIC_GROUPS))],
 )
 def update_corr_options(geo_level, *_group_clicks):
-    """Callback: update correlation metric options and apply preset groups."""
     _, cols = CORR_GEOS[geo_level]
     opts = _make_options(cols)
     triggered = callback_context.triggered[0]["prop_id"]
@@ -2042,7 +1975,6 @@ def update_corr_options(geo_level, *_group_clicks):
     Input("corr-metrics", "value"),
 )
 def update_corr_matrix(geo_level, selected_metrics):
-    """Callback: render correlation heatmap."""
     if not selected_metrics or len(selected_metrics) < 2:
         return px.imshow([[]], title="Select at least 2 metrics")
     df, _ = CORR_GEOS[geo_level]
@@ -2095,7 +2027,6 @@ def _parse_preset_idx(triggered_id, prefix):
     prevent_initial_call=True,
 )
 def _update_trends_active(*args):
-    """Callback: track active trends preset index."""
     *_, current = args
     idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "trends")
     return None if current == idx else idx
@@ -2106,7 +2037,6 @@ def _update_trends_active(*args):
     Input("trends-active-preset", "data"),
 )
 def _highlight_trends_presets(active):
-    """Callback: highlight active trends preset button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_TRENDS)]
 
 
@@ -2117,7 +2047,6 @@ def _highlight_trends_presets(active):
     prevent_initial_call=True,
 )
 def _update_scatter_active(*args):
-    """Callback: track active scatter preset index."""
     *_, current = args
     idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "scatter")
     return None if current == idx else idx
@@ -2128,7 +2057,6 @@ def _update_scatter_active(*args):
     Input("scatter-active-preset", "data"),
 )
 def _highlight_scatter_presets(active):
-    """Callback: highlight active scatter preset button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_SCATTER)]
 
 
@@ -2139,7 +2067,6 @@ def _highlight_scatter_presets(active):
     prevent_initial_call=True,
 )
 def _update_anim_active(*args):
-    """Callback: track active animated scatter preset index."""
     *_, current = args
     idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "anim")
     return None if current == idx else idx
@@ -2150,7 +2077,6 @@ def _update_anim_active(*args):
     Input("anim-active-preset", "data"),
 )
 def _highlight_anim_presets(active):
-    """Callback: highlight active animated scatter preset button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_ANIM)]
 
 
@@ -2164,7 +2090,6 @@ _N_CORR_GROUPS = len(CORR_METRIC_GROUPS)
     prevent_initial_call=True,
 )
 def _update_corr_active_group(*args):
-    """Callback: track active correlation group button index."""
     *_, current = args
     idx = int(callback_context.triggered[0]["prop_id"].split("-")[2].split(".")[0])
     return None if current == idx else idx
@@ -2175,7 +2100,6 @@ def _update_corr_active_group(*args):
     Input("corr-active-group", "data"),
 )
 def _highlight_corr_groups(active):
-    """Callback: highlight active correlation group button."""
     return [_btn_active_style if i == active else _btn_style for i in range(_N_CORR_GROUPS)]
 
 

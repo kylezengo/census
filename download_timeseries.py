@@ -1,6 +1,7 @@
-"""Download ACS 5-year time series (2009–2022) at state and county level."""
+"""Download ACS 5-year time series (2009–2024) at state and county level."""
 
 import os
+import sys
 import time
 import requests
 import numpy as np
@@ -21,6 +22,11 @@ _log(f"Starting timeseries download ({len(YEARS)} years, state + county)")
 
 load_dotenv()
 census_api_key = os.getenv("census_api_key")
+
+_OUTPUTS = ["c_timeseries_state.csv", "c_timeseries_county.csv"]
+if "--force" not in sys.argv and all(os.path.exists(f) for f in _OUTPUTS):
+    _log("Timeseries data already downloaded. Run with --force to re-download.")
+    sys.exit(0)
 
 # Focused summary variables — all fit in one API call per year per geo level
 VARS = [
@@ -84,6 +90,20 @@ VARS_PRE2012 = [
 VAR_STR_PRE2012 = ",".join(VARS_PRE2012)
 
 
+def _fetch_all_years(for_clause, label):
+    _log(f"Fetching {label} timeseries ({len(YEARS)} years, {MAX_WORKERS} workers)...")
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {executor.submit(_fetch_year, y, for_clause): y for y in YEARS}
+        dfs = []
+        for future in as_completed(futures):
+            y = futures[future]
+            result = future.result()
+            if result is not None:
+                dfs.append(result)
+                _log(f"  {label} {y}: {len(result)} rows")
+    return pd.concat(dfs, ignore_index=True)
+
+
 def _fetch_year(year, for_clause):
     url = ACS_BASE.format(year=year)
     var_str = VAR_STR if year >= 2012 else VAR_STR_PRE2012
@@ -144,19 +164,7 @@ def _process(df):
 
 
 # State ########################################################################################
-_log(f"Fetching state timeseries ({len(YEARS)} years, {MAX_WORKERS} workers)...")
-with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-    futures = {executor.submit(_fetch_year, y, "state:*"): y for y in YEARS}
-    state_dfs = []
-    for future in as_completed(futures):
-        y = futures[future]
-        result = future.result()
-        if result is not None:
-            state_dfs.append(result)
-            _log(f"  state {y}: {len(result)} rows")
-
-ts_state = pd.concat(state_dfs, ignore_index=True)
-ts_state = _process(ts_state)
+ts_state = _process(_fetch_all_years("state:*", "state"))
 ts_state = ts_state.drop(columns=["state"], errors="ignore").rename(
     columns={"NAME": "state"}
 )
@@ -166,19 +174,7 @@ _log(
 )
 
 # County #######################################################################################
-_log(f"Fetching county timeseries ({len(YEARS)} years, {MAX_WORKERS} workers)...")
-with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-    futures = {executor.submit(_fetch_year, y, "county:*"): y for y in YEARS}
-    county_dfs = []
-    for future in as_completed(futures):
-        y = futures[future]
-        result = future.result()
-        if result is not None:
-            county_dfs.append(result)
-            _log(f"  county {y}: {len(result)} rows")
-
-ts_county = pd.concat(county_dfs, ignore_index=True)
-ts_county = _process(ts_county)
+ts_county = _process(_fetch_all_years("county:*", "county"))
 ts_county["GEOID"] = ts_county["state"] + ts_county["county"]
 ts_county = ts_county.drop(columns=["state", "county"], errors="ignore")
 ts_county = ts_county.sort_values(["NAME", "year"]).reset_index(drop=True)
