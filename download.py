@@ -111,9 +111,9 @@ _log(f"Variable groups: {len(var_groups)} groups, {len(metrics)} total metrics")
 
 def _merge_chunks(chunk_dfs, key_cols):
     merged = chunk_dfs[0]
-    for chunk in chunk_dfs[1:]:
-        chunk = chunk[[c for c in chunk.columns if c in key_cols or c not in merged.columns]]
-        merged = merged.merge(chunk, how="outer", on=key_cols)
+    for _chunk in chunk_dfs[1:]:
+        keep = [c for c in _chunk.columns if c in key_cols or c not in merged.columns]
+        merged = merged.merge(_chunk[keep], how="outer", on=key_cols)
     return merged
 
 
@@ -491,41 +491,41 @@ _dfs_to_process = [
     ("block_group", c_block_group),
     ("congressional_district", c_congressional_district),
 ]
-for name, df in _dfs_to_process:
-    _log(f"  Computing derived metrics for {name} ({len(df)} rows)...")
+for name, _df in _dfs_to_process:
+    _log(f"  Computing derived metrics for {name} ({len(_df)} rows)...")
     # Replace Census suppressed-value sentinel before any derived calculations
-    available_metrics = [m for m in metrics if m in df.columns]
-    df[available_metrics] = (
-        df[available_metrics].astype(float).replace(-666666666.0, np.nan)
+    available_metrics = [m for m in metrics if m in _df.columns]
+    _df[available_metrics] = (
+        _df[available_metrics].astype(float).replace(-666666666.0, np.nan)
     )
     # Compute pct_ derived metrics using raw Census codes before rename
     for pct_col, spec in pre_rename_derived.items():
-        num_cols = [c for c in spec["num"] if c in df.columns]
+        num_cols = [c for c in spec["num"] if c in _df.columns]
         denom_col = spec["denom"]
-        if num_cols and denom_col in df.columns:
-            df[pct_col] = df[num_cols].sum(axis=1) / df[denom_col]
-    df.rename(columns=concept_label_map, inplace=True)
+        if num_cols and denom_col in _df.columns:
+            _df[pct_col] = _df[num_cols].sum(axis=1) / _df[denom_col]
+    _df.rename(columns=concept_label_map, inplace=True)
 
-    df["pct_male"] = df["Pop Male"] / df["Pop"]
-    df["Household Income 200+_ratio"] = (
-        df["N Household Income 200000 or more"]
-        / df["Households by Type - Estimate Total"]
+    _df["pct_male"] = _df["Pop Male"] / _df["Pop"]
+    _df["Household Income 200+_ratio"] = (
+        _df["N Household Income 200000 or more"]
+        / _df["Households by Type - Estimate Total"]
     )
     for gender in ["Male", "Female"]:
         for decade, cols in decade_aggregations:
             colnames = [f"Pop {gender} {c}" for c in cols]
             new_col = f"Pop {gender} {decade}"
-            df[new_col] = df[colnames].sum(axis=1)
+            _df[new_col] = _df[colnames].sum(axis=1)
     for decade in decade_labels:
         male_col = f"Pop Male {decade}"
         female_col = f"Pop Female {decade}"
         ratio_col = f"pct_male_{decade}"
-        df[ratio_col] = df[male_col] / (df[male_col] + df[female_col])
+        _df[ratio_col] = _df[male_col] / (_df[male_col] + _df[female_col])
     for pct_col, source_col in racial_pct.items():
-        if source_col in df.columns:
-            df[pct_col] = df[source_col] / df["Pop"]
+        if source_col in _df.columns:
+            _df[pct_col] = _df[source_col] / _df["Pop"]
 
-    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    _df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
 # Drop all Median columns from c_dma — summing medians over ZCTAs is meaningless
 median_cols_to_drop = [c for c in c_dma.columns if "Median" in c]
@@ -535,7 +535,7 @@ c_dma = c_dma.drop(columns=median_cols_to_drop)
 _log("Saving CSVs...")
 state_name.to_csv(f"state_name_{ACS_YEAR}.csv", index=False)
 
-for filename, df in [
+for filename, _df in [
     (f"c_state_{ACS_YEAR}.csv", c_state),
     (f"c_dma_{ACS_YEAR}.csv", c_dma),
     (f"c_county_state_{ACS_YEAR}.csv", c_county_state),
@@ -544,7 +544,7 @@ for filename, df in [
     (f"c_block_group_{ACS_YEAR}.csv", c_block_group),
     (f"c_congressional_district_{ACS_YEAR}.csv", c_congressional_district),
 ]:
-    df.to_csv(filename, index=False)
-    _log(f"  Saved {filename} ({len(df)} rows, {len(df.columns)} columns)")
+    _df.to_csv(filename, index=False)
+    _log(f"  Saved {filename} ({len(_df)} rows, {len(_df.columns)} columns)")
 
 _log(f"Done! Total time: {time.time() - _start:.0f}s")
