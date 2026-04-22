@@ -397,14 +397,6 @@ SUGGESTED_SCATTERS = [
         "size": "Pop",
     },
     {
-        "label": "Brain Drain",
-        "geo": "State",
-        "x": "pct_bachelors_plus",
-        "y": "pct_unemployed",
-        "color": "pct_poverty",
-        "size": "Pop",
-    },
-    {
         "label": "Homeownership Gap",
         "geo": "County",
         "x": "pct_black",
