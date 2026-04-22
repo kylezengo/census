@@ -17,3 +17,6 @@ tract_geom.to_file("tract_geom.shp", index=False)
 
 block_group_geom = pygris.block_groups(year=2022, cb=True)
 block_group_geom.to_file("block_group_geom.shp", index=False)
+
+congressional_district_geom = pygris.congressional_districts(year=2022, cb=True)
+congressional_district_geom.to_file("congressional_district_geom.shp", index=False)

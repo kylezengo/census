@@ -4,18 +4,22 @@ import os
 from google.cloud import storage
 
 BUCKET = os.environ["GCS_BUCKET"]
+ACS_YEAR = 2024
 
 FILES = [
-    # CSVs
-    "c_state.csv",
-    "c_dma.csv",
-    "c_county_state.csv",
-    "c_zcta_dma.csv",
-    "c_tract.csv",
-    "c_block_group.csv",
+    # ACS year-specific CSVs
+    f"c_state_{ACS_YEAR}.csv",
+    f"c_dma_{ACS_YEAR}.csv",
+    f"c_county_state_{ACS_YEAR}.csv",
+    f"c_zcta_dma_{ACS_YEAR}.csv",
+    f"c_tract_{ACS_YEAR}.csv",
+    f"c_block_group_{ACS_YEAR}.csv",
+    f"c_congressional_district_{ACS_YEAR}.csv",
+    f"state_name_{ACS_YEAR}.csv",
+    # Timeseries (all years, no suffix)
     "c_timeseries_state.csv",
     "c_timeseries_county.csv",
-    "state_name.csv",
+    # Static mapping
     "zcta_to_dma.csv",
     # Shapefiles (all sidecar files required by geopandas)
     "state_geom.shp",
@@ -43,6 +47,11 @@ FILES = [
     "block_group_geom.dbf",
     "block_group_geom.prj",
     "block_group_geom.cpg",
+    "congressional_district_geom.shp",
+    "congressional_district_geom.shx",
+    "congressional_district_geom.dbf",
+    "congressional_district_geom.prj",
+    "congressional_district_geom.cpg",
 ]
 
 client = storage.Client()

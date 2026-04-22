@@ -10,6 +10,7 @@ from dash import Dash, html, dcc, Input, Output, State, callback_context
 
 pio.templates.default = "plotly_white"
 
+ACS_YEAR = 2024
 DEFAULT_VAR = "Pop"
 
 MALE_COLOR = "Blues"
@@ -23,6 +24,7 @@ county_geom_raw = gpd.read_file("county_geom.shp")
 zcta_geom_raw = gpd.read_file("zcta_geom.shp")
 tract_geom_raw = gpd.read_file("tract_geom.shp")
 block_group_geom_raw = gpd.read_file("block_group_geom.shp")
+congressional_district_geom_raw = gpd.read_file("congressional_district_geom.shp")
 
 zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={"zcta": object})
 
@@ -32,16 +34,19 @@ dma_polygons_raw["dma_code"] = dma_polygons_raw["dma_code"].astype(str)
 
 dma_polygon_map = pd.read_csv("dma_polygon_map.csv")
 
-c_state = pd.read_csv("c_state.csv")
-c_dma = pd.read_csv("c_dma.csv")
+c_state = pd.read_csv(f"c_state_{ACS_YEAR}.csv")
+c_dma = pd.read_csv(f"c_dma_{ACS_YEAR}.csv")
 ts_state = pd.read_csv("c_timeseries_state.csv")
 ts_county = pd.read_csv("c_timeseries_county.csv", dtype={"GEOID": object})
-c_county_state = pd.read_csv("c_county_state.csv", dtype={"GEOID": object})
-c_zcta_dma = pd.read_csv("c_zcta_dma.csv", dtype={"zcta": object})
-c_tract = pd.read_csv("c_tract.csv", dtype={"GEOID": object})
-c_block_group = pd.read_csv("c_block_group.csv", dtype={"GEOID": object})
+c_county_state = pd.read_csv(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
+c_zcta_dma = pd.read_csv(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
+c_tract = pd.read_csv(f"c_tract_{ACS_YEAR}.csv", dtype={"GEOID": object})
+c_block_group = pd.read_csv(f"c_block_group_{ACS_YEAR}.csv", dtype={"GEOID": object})
+c_congressional_district = pd.read_csv(
+    f"c_congressional_district_{ACS_YEAR}.csv", dtype={"GEOID": object}
+)
 
-state_name = pd.read_csv("state_name.csv", dtype={"state": object})
+state_name = pd.read_csv(f"state_name_{ACS_YEAR}.csv", dtype={"state": object})
 
 
 def _add_price_to_rent(df):
@@ -58,6 +63,7 @@ for _df in [
     c_zcta_dma,
     c_tract,
     c_block_group,
+    c_congressional_district,
     ts_state,
     ts_county,
 ]:
@@ -82,6 +88,7 @@ zcta_geom = zcta_geom_raw.merge(
 
 tract_geom = tract_geom_raw[["GEOID", "geometry"]]
 block_group_geom = block_group_geom_raw[["GEOID", "geometry"]]
+congressional_district_geom = congressional_district_geom_raw[["GEOID", "geometry"]].set_index("GEOID")
 
 # Pre-compute GeoJSON per state/city at startup to avoid re-serializing on every callback
 tract_geom_by_state = {
@@ -99,6 +106,13 @@ block_group_geom_by_city = {
     .set_index("GEOID")
     .to_json()
     for city, fips in _city_fips.items()
+}
+
+congressional_district_geom_by_state = {
+    fips: congressional_district_geom[
+        congressional_district_geom.index.str[:2] == fips
+    ].to_json()
+    for fips in state_name["state"].unique()
 }
 
 # Metric column lists ##########################################################################
@@ -122,6 +136,11 @@ block_group_metric_cols = sorted(
     for col in c_block_group.columns
     if col
     not in ["state", "county", "state_NAME", "GEOID", "NAME", "tract", "block group"]
+)
+congressional_district_metric_cols = sorted(
+    col
+    for col in c_congressional_district.columns
+    if col not in ["state", "state_NAME", "GEOID", "NAME", "congressional district"]
 )
 
 dmas = c_dma["dma"].unique()
@@ -176,13 +195,6 @@ SUGGESTED_TRENDS = [
         "inflate": ["inflate"],
     },
     {
-        "label": "Poverty Trends",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Texas", "Mississippi"],
-        "metric": "pct_poverty",
-        "inflate": [],
-    },
-    {
         "label": "Education Gains",
         "geo_level": "State",
         "geo": ["California", "New York", "Texas", "Florida"],
@@ -223,29 +235,23 @@ SUGGESTED_TRENDS = [
         "inflate": ["inflate"],
     },
     {
-        "label": "County Rent Pressure",
-        "geo_level": "County",
-        "geo": [
-            "Los Angeles County, California",
-            "Miami-Dade County, Florida",
-            "Cook County, Illinois",
-            "King County, Washington",
-            "Denver County, Colorado",
-        ],
-        "metric": "Median Gross Rent",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "County Education Trend",
+        "label": "Sun Belt Boom",
         "geo_level": "County",
         "geo": [
             "Travis County, Texas",
-            "Fulton County, Georgia",
-            "Wake County, North Carolina",
+            "Maricopa County, Arizona",
+            "Davidson County, Tennessee",
             "Mecklenburg County, North Carolina",
-            "Denver County, Colorado",
+            "Wake County, North Carolina",
         ],
-        "metric": "pct_bachelors_plus",
+        "metric": "Pop",
+        "inflate": [],
+    },
+    {
+        "label": "Renter Nation",
+        "geo_level": "State",
+        "geo": ["California", "New York", "Florida", "Texas", "Colorado"],
+        "metric": "pct_renter_occupied",
         "inflate": [],
     },
 ]
@@ -291,6 +297,22 @@ SUGGESTED_ANIM_SCATTERS = [
         "color": "Median Household Income",
         "size": "Pop",
     },
+    {
+        "label": "Market Quality Over Time",
+        "geo_level": "State",
+        "x": "pct_bachelors_plus",
+        "y": "Median Household Income",
+        "color": "pct_poverty",
+        "size": "Pop",
+    },
+    {
+        "label": "Renter Market Growth",
+        "geo_level": "County",
+        "x": "pct_renter_occupied",
+        "y": "Median Gross Rent",
+        "color": "Pop",
+        "size": "Pop",
+    },
 ]
 
 # Scatter geography config: name → (dataframe, label_col, metric_cols)
@@ -299,6 +321,11 @@ SCATTER_GEOS = {
     "DMA": (c_dma, "dma", dma_metric_cols),
     "County": (c_county_state, "NAME", county_metric_cols),
     "ZCTA": (c_zcta_dma, "zcta", zcta_metric_cols),
+    "Congressional District": (
+        c_congressional_district,
+        "NAME",
+        congressional_district_metric_cols,
+    ),
 }
 
 CORR_GEOS = {
@@ -306,6 +333,7 @@ CORR_GEOS = {
     "DMA": (c_dma, dma_metric_cols),
     "County": (c_county_state, county_metric_cols),
     "ZCTA": (c_zcta_dma, zcta_metric_cols),
+    "Congressional District": (c_congressional_district, congressional_district_metric_cols),
 }
 
 CORR_METRIC_GROUPS = {
@@ -348,6 +376,19 @@ CORR_METRIC_GROUPS = {
         "pct_white_nh",
         "pct_black",
     ],
+    "Advertiser": [
+        "Median Household Income",
+        "Household Income 200+_ratio",
+        "pct_bachelors_plus",
+        "pct_owner_occupied",
+        "pct_renter_occupied",
+        "pct_hispanic",
+        "pct_asian",
+        "pct_black",
+        "pct_poverty",
+        "pct_male_20 to 29 years",
+        "pct_male_30 to 39 years",
+    ],
 }
 
 # Suggested scatter presets
@@ -361,43 +402,11 @@ SUGGESTED_SCATTERS = [
         "size": "Pop",
     },
     {
-        "label": "DMA Overview",
-        "geo": "DMA",
-        "x": "pct_white_nh",
-        "y": "Household Income 200+_ratio",
-        "color": "pct_black",
-        "size": "Pop",
-    },
-    {
         "label": "Young Adult Hubs",
         "geo": "County",
         "x": "pct_male_20 to 29 years",
         "y": "Household Income 200+_ratio",
         "color": "pct_hispanic",
-        "size": "Pop",
-    },
-    {
-        "label": "Gentrification",
-        "geo": "ZCTA",
-        "x": "pct_renter_occupied",
-        "y": "Median Gross Rent",
-        "color": "pct_bachelors_plus",
-        "size": "Pop",
-    },
-    {
-        "label": "Home Affordability",
-        "geo": "County",
-        "x": "Median Household Income",
-        "y": "Median Home Value",
-        "color": "pct_owner_occupied",
-        "size": "Pop",
-    },
-    {
-        "label": "Education & Poverty",
-        "geo": "County",
-        "x": "pct_bachelors_plus",
-        "y": "pct_poverty",
-        "color": "pct_black",
         "size": "Pop",
     },
     {
@@ -433,19 +442,35 @@ SUGGESTED_SCATTERS = [
         "size": "Pop",
     },
     {
-        "label": "Upside Markets",
-        "geo": "County",
-        "x": "Median Household Income",
-        "y": "Median Home Value",
-        "color": "pct_bachelors_plus",
-        "size": "Pop",
-    },
-    {
         "label": "Gentrification Risk",
         "geo": "ZCTA",
         "x": "pct_poverty",
         "y": "pct_bachelors_plus",
         "color": "Median Gross Rent",
+        "size": "Pop",
+    },
+    {
+        "label": "Affluent DMAs",
+        "geo": "DMA",
+        "x": "pct_bachelors_plus",
+        "y": "Household Income 200+_ratio",
+        "color": "pct_owner_occupied",
+        "size": "Pop",
+    },
+    {
+        "label": "Premium Audience Size",
+        "geo": "County",
+        "x": "Median Household Income",
+        "y": "Pop",
+        "color": "Household Income 200+_ratio",
+        "size": "Pop",
+    },
+    {
+        "label": "Asian American Markets",
+        "geo": "County",
+        "x": "pct_asian",
+        "y": "Median Household Income",
+        "color": "pct_bachelors_plus",
         "size": "Pop",
     },
 ]
@@ -1008,6 +1033,60 @@ app.layout = html.Div(
                                             id="block_group_map",
                                             width="100%",
                                             height="700",
+                                        )
+                                    ],
+                                    style={"flexGrow": 1, "padding": "20px"},
+                                ),
+                            ],
+                            style={"display": "flex", "alignItems": "flex-start"},
+                        )
+                    ],
+                ),
+                dcc.Tab(
+                    label="Congressional Districts",
+                    style=_tab_style,
+                    selected_style=_tab_style,
+                    children=[
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Label(
+                                            "Select Metrics",
+                                            style={"fontWeight": "bold"},
+                                        ),
+                                        dcc.Dropdown(
+                                            id="cd-metric-selector",
+                                            options=_make_options(
+                                                congressional_district_metric_cols
+                                            ),
+                                            value=[DEFAULT_VAR],
+                                            multi=True,
+                                            placeholder="Select metrics...",
+                                        ),
+                                        _normalize_checkbox("cd-normalize"),
+                                        html.Label(
+                                            "Select State", style={"fontWeight": "bold"}
+                                        ),
+                                        dcc.Dropdown(
+                                            id="cd-state-selector",
+                                            options=states,
+                                            value="New York",
+                                            multi=False,
+                                            placeholder="Select State...",
+                                        ),
+                                    ],
+                                    style={
+                                        "fontFamily": "Arial",
+                                        "width": "300px",
+                                        "padding": "20px",
+                                        "flexShrink": 0,
+                                    },
+                                ),
+                                html.Div(
+                                    [
+                                        html.Iframe(
+                                            id="cd_map", width="100%", height="700"
                                         )
                                     ],
                                     style={"flexGrow": 1, "padding": "20px"},
@@ -1628,6 +1707,28 @@ def generate_block_group_map(
     )
 
 
+def generate_congressional_district_map(selected_metrics, selected_state, normalize=False):
+    """Render congressional district choropleth map for a single state."""
+    state_fips = state_name.loc[
+        state_name["state_NAME"] == selected_state, "state"
+    ].values[0]
+
+    df = c_congressional_district.loc[
+        c_congressional_district["GEOID"].str[:2] == state_fips
+    ].reset_index(drop=True)
+    if normalize:
+        df = _normalize_df(df, selected_metrics)
+
+    return _build_choropleth_map(
+        congressional_district_geom_by_state[state_fips],
+        df,
+        "GEOID",
+        "Congressional District",
+        selected_metrics,
+        name_col="NAME",
+    )
+
+
 # Callbacks ########################################################################################
 
 
@@ -1697,6 +1798,17 @@ def update_tract_map(metrics, state, pop_min, exclude, normalize):
 def update_block_group_map(metrics, city, pop_min, exclude, normalize):
     """Callback: update block group map."""
     return generate_block_group_map(metrics, city, pop_min, exclude, bool(normalize))
+
+
+@app.callback(
+    Output("cd_map", "srcDoc"),
+    Input("cd-metric-selector", "value"),
+    Input("cd-state-selector", "value"),
+    Input("cd-normalize", "value"),
+)
+def update_cd_map(metrics, state, normalize):
+    """Callback: update congressional district map."""
+    return generate_congressional_district_map(metrics, state, bool(normalize))
 
 
 @app.callback(Output("tract-exclude", "options"), Input("state-selector", "value"))
@@ -1781,6 +1893,9 @@ def update_scatter(
     geo, x_metric, y_metric, color_metric, size_metric, show_trendline, filter_vals
 ):
     """Callback: render scatter plot."""
+    if not x_metric or not y_metric:
+        return px.scatter()
+
     df, label_col, _ = SCATTER_GEOS[geo]
 
     if filter_vals:
@@ -1890,6 +2005,9 @@ def update_anim_scatter(
     geo_level, x_metric, y_metric, color_metric, size_metric, inflate
 ):
     """Callback: render animated scatter plot."""
+    if not x_metric or not y_metric:
+        return px.scatter()
+
     df, name_col = TIMESERIES_GEOS[geo_level]
 
     extra = [m for m in [color_metric, size_metric] if m]

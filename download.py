@@ -2,6 +2,7 @@
 
 import os
 import re
+import sys
 import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -10,7 +11,8 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
-ACS_URL = "https://api.census.gov/data/2024/acs/acs5"
+ACS_YEAR = 2024
+ACS_URL = f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5"
 
 
 def _log(msg):
@@ -23,6 +25,20 @@ _log("Starting Census download")
 # Authentication
 load_dotenv()
 census_api_key = os.getenv("census_api_key")
+
+_OUTPUTS = [
+    f"c_state_{ACS_YEAR}.csv",
+    f"c_dma_{ACS_YEAR}.csv",
+    f"c_county_state_{ACS_YEAR}.csv",
+    f"c_zcta_dma_{ACS_YEAR}.csv",
+    f"c_tract_{ACS_YEAR}.csv",
+    f"c_block_group_{ACS_YEAR}.csv",
+    f"c_congressional_district_{ACS_YEAR}.csv",
+    f"state_name_{ACS_YEAR}.csv",
+]
+if "--force" not in sys.argv and all(os.path.exists(f) for f in _OUTPUTS):
+    _log(f"ACS {ACS_YEAR} data already downloaded. Run with --force to re-download.")
+    sys.exit(0)
 
 # Load files
 zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={"zcta": object})
@@ -186,6 +202,14 @@ def _fetch_county_block_groups(state_fips, county):
     )
 
 
+def _fetch_state_congressional_districts(state_fips):
+    return _fetch_geo(
+        "congressional district:*",
+        f"state:{state_fips}",
+        ["NAME", "state", "congressional district"],
+    )
+
+
 # tract ############################################################################################
 states = dfs["state"]["state"].unique()
 _log(
@@ -241,6 +265,34 @@ with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
 dfs["block group"] = pd.concat(block_group_dfs, ignore_index=True)
 _log(f"Block groups complete: {len(dfs['block group'])} total rows")
 
+# congressional district ###########################################################################
+_log(
+    f"Fetching congressional districts for {len(states)} states "
+    f"({len(var_groups)} groups each, {MAX_WORKERS} workers)..."
+)
+with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    futures = {
+        executor.submit(_fetch_state_congressional_districts, fips): fips
+        for fips in states
+    }
+    cd_dfs = []
+    for i, future in enumerate(as_completed(futures), 1):
+        fips = futures[future]
+        result = future.result()
+        if result is not None:
+            cd_dfs.append(result)
+            _log(
+                f"  congressional districts: {i}/{len(states)} states done "
+                f"(state {fips}, {len(result)} districts)"
+            )
+        else:
+            _log(f"  congressional districts: WARNING — state {fips} returned no data")
+
+dfs["congressional district"] = pd.concat(cd_dfs, ignore_index=True)
+_log(
+    f"Congressional districts complete: {len(dfs['congressional district'])} total rows"
+)
+
 # build data frames ################################################################################
 _log("Building data frames...")
 c_state = dfs["state"]
@@ -272,6 +324,15 @@ c_block_group["GEOID"] = (
     + c_block_group["county"]
     + c_block_group["tract"].str.zfill(6)
     + c_block_group["block group"]
+)
+
+c_congressional_district = dfs["congressional district"]
+c_congressional_district["GEOID"] = (
+    c_congressional_district["state"]
+    + c_congressional_district["congressional district"].str.zfill(2)
+)
+c_congressional_district = c_congressional_district.merge(
+    state_name, how="left", on="state"
 )
 
 # --- CLEAN UP ---
@@ -432,8 +493,8 @@ pre_rename_derived = {
     },
 }
 
-pop_df_names = ["state", "dma", "county", "zcta", "tract", "block_group"]
-pop_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_tract, c_block_group]
+pop_df_names = ["state", "dma", "county", "zcta", "tract", "block_group", "congressional_district"]
+pop_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_tract, c_block_group, c_congressional_district]
 for name, df in zip(pop_df_names, pop_dfs):
     _log(f"  Computing derived metrics for {name} ({len(df)} rows)...")
     # Replace Census suppressed-value sentinel before any derived calculations
@@ -476,15 +537,16 @@ c_dma = c_dma.drop(columns=median_cols_to_drop)
 
 # --- SAVE ---
 _log("Saving CSVs...")
-state_name.to_csv("state_name.csv", index=False)
+state_name.to_csv(f"state_name_{ACS_YEAR}.csv", index=False)
 
 for filename, df in [
-    ("c_state.csv", c_state),
-    ("c_dma.csv", c_dma),
-    ("c_county_state.csv", c_county_state),
-    ("c_zcta_dma.csv", c_zcta_dma),
-    ("c_tract.csv", c_tract),
-    ("c_block_group.csv", c_block_group),
+    (f"c_state_{ACS_YEAR}.csv", c_state),
+    (f"c_dma_{ACS_YEAR}.csv", c_dma),
+    (f"c_county_state_{ACS_YEAR}.csv", c_county_state),
+    (f"c_zcta_dma_{ACS_YEAR}.csv", c_zcta_dma),
+    (f"c_tract_{ACS_YEAR}.csv", c_tract),
+    (f"c_block_group_{ACS_YEAR}.csv", c_block_group),
+    (f"c_congressional_district_{ACS_YEAR}.csv", c_congressional_district),
 ]:
     df.to_csv(filename, index=False)
     _log(f"  Saved {filename} ({len(df)} rows, {len(df.columns)} columns)")
