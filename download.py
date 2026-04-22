@@ -130,7 +130,7 @@ for level in geo_level:
     )
 
 # Parallel download helpers ########################################################################
-MAX_WORKERS = 5
+MAX_WORKERS = 3
 MAX_RETRIES = 3
 
 
@@ -145,17 +145,23 @@ def _fetch_geo(for_clause, in_clause, merge_cols):
             "key": census_api_key,
         }
         for attempt in range(MAX_RETRIES):
-            resp = requests.get(ACS_URL, params=req_params, timeout=20)
-            if resp.status_code == 200:
-                rows = resp.json()
-                group_dfs.append(pd.DataFrame(rows[1:], columns=rows[0]))
-                break
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(2**attempt)
-            else:
-                print(
-                    f"Error {resp.status_code} after {MAX_RETRIES} attempts: {resp.text}"
-                )
+            try:
+                resp = requests.get(ACS_URL, params=req_params, timeout=30)
+                if resp.status_code == 200:
+                    rows = resp.json()
+                    group_dfs.append(pd.DataFrame(rows[1:], columns=rows[0]))
+                    break
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(2**attempt)
+                else:
+                    print(
+                        f"Error {resp.status_code} after {MAX_RETRIES} attempts: {resp.text}"
+                    )
+            except requests.exceptions.RequestException as e:
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(2**attempt)
+                else:
+                    print(f"Connection error after {MAX_RETRIES} attempts: {e}")
 
     if not group_dfs:
         return None
