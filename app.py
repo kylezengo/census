@@ -1,5 +1,7 @@
 """Census Data Explorer — interactive demographic visualization app."""
 
+import os
+
 import folium
 import geopandas as gpd
 import numpy as np
@@ -12,6 +14,7 @@ pio.templates.default = "plotly_white"
 
 ACS_YEAR = 2024
 DEFAULT_VAR = "Pop"
+DEV_MODE = os.environ.get("DEV_MODE") == "true"
 
 MALE_COLOR = "Blues"
 FEMALE_COLOR = "Reds"
@@ -22,9 +25,10 @@ INCOME_COLOR = "Greens"
 state_geom_raw = gpd.read_file("state_geom.shp")
 county_geom_raw = gpd.read_file("county_geom.shp")
 zcta_geom_raw = gpd.read_file("zcta_geom.shp")
-tract_geom_raw = gpd.read_file("tract_geom.shp")
-block_group_geom_raw = gpd.read_file("block_group_geom.shp")
 congressional_district_geom_raw = gpd.read_file("congressional_district_geom.shp")
+if DEV_MODE:
+    tract_geom_raw = gpd.read_file("tract_geom.shp")
+    block_group_geom_raw = gpd.read_file("block_group_geom.shp")
 
 zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={"zcta": object})
 
@@ -40,8 +44,9 @@ ts_state = pd.read_csv("c_timeseries_state.csv")
 ts_county = pd.read_csv("c_timeseries_county.csv", dtype={"GEOID": object})
 c_county_state = pd.read_csv(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = pd.read_csv(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
-c_tract = pd.read_csv(f"c_tract_{ACS_YEAR}.csv", dtype={"GEOID": object})
-c_block_group = pd.read_csv(f"c_block_group_{ACS_YEAR}.csv", dtype={"GEOID": object})
+if DEV_MODE:
+    c_tract = pd.read_csv(f"c_tract_{ACS_YEAR}.csv", dtype={"GEOID": object})
+    c_block_group = pd.read_csv(f"c_block_group_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_congressional_district = pd.read_csv(
     f"c_congressional_district_{ACS_YEAR}.csv", dtype={"GEOID": object}
 )
@@ -56,17 +61,10 @@ def _add_price_to_rent(df):
         )
 
 
-for _df in [
-    c_state,
-    c_dma,
-    c_county_state,
-    c_zcta_dma,
-    c_tract,
-    c_block_group,
-    c_congressional_district,
-    ts_state,
-    ts_county,
-]:
+_price_to_rent_dfs = [c_state, c_dma, c_county_state, c_zcta_dma, c_congressional_district, ts_state, ts_county]
+if DEV_MODE:
+    _price_to_rent_dfs += [c_tract, c_block_group]
+for _df in _price_to_rent_dfs:
     _add_price_to_rent(_df)
 
 # Set up the geographic geometry files #########################################################
@@ -85,8 +83,9 @@ zcta_geom = zcta_geom_raw.merge(
     zcta_to_dma[["zcta", "dma"]], how="left", left_on="ZCTA5CE20", right_on="zcta"
 )
 
-tract_geom = tract_geom_raw[["GEOID", "geometry"]]
-block_group_geom = block_group_geom_raw[["GEOID", "geometry"]]
+if DEV_MODE:
+    tract_geom = tract_geom_raw[["GEOID", "geometry"]]
+    block_group_geom = block_group_geom_raw[["GEOID", "geometry"]]
 congressional_district_geom = congressional_district_geom_raw[["GEOID", "geometry"]].set_index("GEOID")
 congressional_district_geom_json = congressional_district_geom.to_json()
 
@@ -96,22 +95,23 @@ county_geom_by_state = {
     for fips in state_name["state"].unique()
 }
 
-tract_geom_by_state = {
-    fips: tract_geom[tract_geom["GEOID"].str[:2] == fips].set_index("GEOID").to_json()
-    for fips in state_name["state"].unique()
-}
-
-_city_fips = {
-    "New York": ["36005", "36047", "36061", "36081", "36085"],
-    "Los Angeles": ["06037"],
-    "San Francisco": ["06075"],
-}
-block_group_geom_by_city = {
-    city: block_group_geom[block_group_geom["GEOID"].str[:5].isin(fips)]
-    .set_index("GEOID")
-    .to_json()
-    for city, fips in _city_fips.items()
-}
+if DEV_MODE:
+    tract_geom_by_state = {
+        fips: tract_geom[tract_geom["GEOID"].str[:2] == fips].set_index("GEOID").to_json()
+        for fips in state_name["state"].unique()
+    }
+    _city_fips = {
+        "New York": ["36005", "36047", "36061", "36081", "36085"],
+        "Los Angeles": ["06037"],
+        "San Francisco": ["06075"],
+    }
+    block_group_geom_by_city = {
+        city: block_group_geom[block_group_geom["GEOID"].str[:5].isin(fips)]
+        .set_index("GEOID")
+        .to_json()
+        for city, fips in _city_fips.items()
+    }
+    cities = list(_city_fips.keys())
 
 # Metric column lists ##########################################################################
 state_metric_cols = sorted(col for col in c_state.columns if col != "state")
@@ -124,17 +124,17 @@ county_metric_cols = sorted(
 zcta_metric_cols = sorted(
     col for col in c_zcta_dma.columns if col not in ["dma", "zcta"]
 )
-tract_metric_cols = sorted(
-    col
-    for col in c_tract.columns
-    if col not in ["state", "county", "state_NAME", "GEOID", "NAME", "tract"]
-)
-block_group_metric_cols = sorted(
-    col
-    for col in c_block_group.columns
-    if col
-    not in ["state", "county", "state_NAME", "GEOID", "NAME", "tract", "block group"]
-)
+if DEV_MODE:
+    tract_metric_cols = sorted(
+        col
+        for col in c_tract.columns
+        if col not in ["state", "county", "state_NAME", "GEOID", "NAME", "tract"]
+    )
+    block_group_metric_cols = sorted(
+        col
+        for col in c_block_group.columns
+        if col not in ["state", "county", "state_NAME", "GEOID", "NAME", "tract", "block group"]
+    )
 congressional_district_metric_cols = sorted(
     col
     for col in c_congressional_district.columns
@@ -143,7 +143,6 @@ congressional_district_metric_cols = sorted(
 
 dmas = c_dma["dma"].unique()
 states = state_name["state_NAME"].unique()
-cities = list(_city_fips.keys())
 
 TIMESERIES_METRICS = [
     "Pop",
@@ -732,7 +731,7 @@ app.layout = html.Div(
                                             id="state-map-geo",
                                             options=[
                                                 {"label": "County", "value": "County"},
-                                                {"label": "Tract", "value": "Tract"},
+                                                *([{"label": "Tract", "value": "Tract"}] if DEV_MODE else []),
                                             ],
                                             value="County",
                                             multi=False,
@@ -860,77 +859,61 @@ app.layout = html.Div(
                         )
                     ],
                 ),
-                dcc.Tab(
-                    label="Block Groups",
-                    style=_tab_style,
-                    selected_style=_tab_style,
-                    children=[
-                        html.Div(
-                            [
-                                html.Div(
-                                    [
-                                        html.Label(
-                                            "Select Metrics",
-                                            style=_bold,
-                                        ),
-                                        dcc.Dropdown(
-                                            id="block-group-metric-selector",
-                                            options=_make_options(
-                                                block_group_metric_cols
+                *(
+                    [dcc.Tab(
+                        label="Block Groups",
+                        style=_tab_style,
+                        selected_style=_tab_style,
+                        children=[
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [
+                                            html.Label("Select Metrics", style=_bold),
+                                            dcc.Dropdown(
+                                                id="block-group-metric-selector",
+                                                options=_make_options(block_group_metric_cols),
+                                                value=[DEFAULT_VAR],
+                                                multi=True,
+                                                placeholder="Select metrics...",
                                             ),
-                                            value=[DEFAULT_VAR],
-                                            multi=True,
-                                            placeholder="Select metrics...",
-                                        ),
-                                        _normalize_checkbox("block-group-normalize"),
-                                        html.Label(
-                                            "Select City", style={"fontWeight": "bold"}
-                                        ),
-                                        dcc.Dropdown(
-                                            id="city-selector",
-                                            options=cities,
-                                            value="New York",
-                                            multi=False,
-                                            placeholder="Select City...",
-                                        ),
-                                        html.Label(
-                                            "Exclude GEOIDs",
-                                            style=_bold,
-                                        ),
-                                        dcc.Dropdown(
-                                            id="block-group-exclude",
-                                            options=[],
-                                            multi=True,
-                                            placeholder="Select GEOIDs to exclude...",
-                                        ),
-                                        html.Label(
-                                            "Minimum Population",
-                                            style=_bold,
-                                        ),
-                                        dcc.Input(
-                                            id="block-group-pop-min",
-                                            type="number",
-                                            value=0,
-                                            min=0,
-                                            step=1,
-                                        ),
-                                    ],
-                                    style=_sidebar_style,
-                                ),
-                                html.Div(
-                                    [
-                                        html.Iframe(
-                                            id="block_group_map",
-                                            width="100%",
-                                            height="700",
-                                        )
-                                    ],
-                                    style=_chart_style,
-                                ),
-                            ],
-                            style=_flex_row,
-                        )
-                    ],
+                                            _normalize_checkbox("block-group-normalize"),
+                                            html.Label("Select City", style={"fontWeight": "bold"}),
+                                            dcc.Dropdown(
+                                                id="city-selector",
+                                                options=cities,
+                                                value="New York",
+                                                multi=False,
+                                                placeholder="Select City...",
+                                            ),
+                                            html.Label("Exclude GEOIDs", style=_bold),
+                                            dcc.Dropdown(
+                                                id="block-group-exclude",
+                                                options=[],
+                                                multi=True,
+                                                placeholder="Select GEOIDs to exclude...",
+                                            ),
+                                            html.Label("Minimum Population", style=_bold),
+                                            dcc.Input(
+                                                id="block-group-pop-min",
+                                                type="number",
+                                                value=0,
+                                                min=0,
+                                                step=1,
+                                            ),
+                                        ],
+                                        style=_sidebar_style,
+                                    ),
+                                    html.Div(
+                                        [html.Iframe(id="block_group_map", width="100%", height="700")],
+                                        style=_chart_style,
+                                    ),
+                                ],
+                                style=_flex_row,
+                            )
+                        ],
+                    )]
+                    if DEV_MODE else []
                 ),
                 dcc.Tab(
                     label="Trends",
@@ -1584,10 +1567,9 @@ def update_us_map(metrics, geo, normalize, exclude_pr):
     return generate_fn(metrics, bool(normalize), exclude_pr=bool(exclude_pr))
 
 
-_STATE_MAP_GEOS = {
-    "County": (county_metric_cols, generate_county_map),
-    "Tract": (tract_metric_cols, generate_tract_map),
-}
+_STATE_MAP_GEOS = {"County": (county_metric_cols, generate_county_map)}
+if DEV_MODE:
+    _STATE_MAP_GEOS["Tract"] = (tract_metric_cols, generate_tract_map)
 
 
 @app.callback(
@@ -1651,25 +1633,25 @@ def update_zcta_map(metrics, dma, pop_min, normalize):
     return generate_zcta_map(metrics, dma, pop_min, bool(normalize))
 
 
-@app.callback(
-    Output("block_group_map", "srcDoc"),
-    Input("block-group-metric-selector", "value"),
-    Input("city-selector", "value"),
-    Input("block-group-pop-min", "value"),
-    Input("block-group-exclude", "value"),
-    Input("block-group-normalize", "value"),
-)
-def update_block_group_map(metrics, city, pop_min, exclude, normalize):
-    return generate_block_group_map(metrics, city, pop_min, exclude, bool(normalize))
-
-
-@app.callback(Output("block-group-exclude", "options"), Input("city-selector", "value"))
-def update_block_group_exclude_options(selected_city):
-    return sorted(
-        c_block_group.loc[
-            c_block_group["GEOID"].str[:5].isin(_city_fips[selected_city]), "GEOID"
-        ].unique()
+if DEV_MODE:
+    @app.callback(
+        Output("block_group_map", "srcDoc"),
+        Input("block-group-metric-selector", "value"),
+        Input("city-selector", "value"),
+        Input("block-group-pop-min", "value"),
+        Input("block-group-exclude", "value"),
+        Input("block-group-normalize", "value"),
     )
+    def update_block_group_map(metrics, city, pop_min, exclude, normalize):
+        return generate_block_group_map(metrics, city, pop_min, exclude, bool(normalize))
+
+    @app.callback(Output("block-group-exclude", "options"), Input("city-selector", "value"))
+    def update_block_group_exclude_options(selected_city):
+        return sorted(
+            c_block_group.loc[
+                c_block_group["GEOID"].str[:5].isin(_city_fips[selected_city]), "GEOID"
+            ].unique()
+        )
 
 
 @app.callback(
