@@ -95,6 +95,10 @@ county_geom_by_state = {
     for fips in state_name["state"].unique()
 }
 
+_city_fips = {}
+cities = []
+tract_geom_by_state = {}
+block_group_geom_by_city = {}
 if DEV_MODE:
     tract_geom_by_state = {
         fips: tract_geom[tract_geom["GEOID"].str[:2] == fips].set_index("GEOID").to_json()
@@ -124,6 +128,8 @@ county_metric_cols = sorted(
 zcta_metric_cols = sorted(
     col for col in c_zcta_dma.columns if col not in ["dma", "zcta"]
 )
+tract_metric_cols = []
+block_group_metric_cols = []
 if DEV_MODE:
     tract_metric_cols = sorted(
         col

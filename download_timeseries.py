@@ -1,4 +1,4 @@
-"""Download ACS 5-year time series (2009–2024) at state and county level."""
+"""Download ACS 5-year time series (2009-2024) at state and county level."""
 
 import os
 import sys
