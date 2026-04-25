@@ -737,6 +737,7 @@ app.layout = html.Div(
                                             id="state-map-geo",
                                             options=[
                                                 {"label": "County", "value": "County"},
+                                                {"label": "Congressional District", "value": "Congressional District"},
                                                 *([{"label": "Tract", "value": "Tract"}] if DEV_MODE else []),
                                             ],
                                             value="County",
@@ -1526,6 +1527,20 @@ def generate_block_group_map(
     )
 
 
+def generate_state_cd_map(selected_metrics, selected_state, normalize=False):
+    """Render congressional district map filtered to a single state."""
+    state_fips = state_name.loc[state_name["state_NAME"] == selected_state, "state"].values[0]
+    df = c_congressional_district.loc[
+        c_congressional_district["GEOID"].str[:2] == state_fips
+    ].reset_index(drop=True)
+    if normalize:
+        df = _normalize_df(df, selected_metrics)
+    geo = congressional_district_geom[
+        congressional_district_geom.index.str[:2] == state_fips
+    ].to_json()
+    return _build_choropleth_map(geo, df, "GEOID", "Congressional District", selected_metrics, name_col="NAME")
+
+
 def generate_congressional_district_map(selected_metrics, normalize=False, exclude_pr=False):
     """Render congressional district choropleth map for the full US."""
     df = _normalize_df(c_congressional_district, selected_metrics) if normalize else c_congressional_district
@@ -1573,7 +1588,10 @@ def update_us_map(metrics, geo, normalize, exclude_pr):
     return generate_fn(metrics, bool(normalize), exclude_pr=bool(exclude_pr))
 
 
-_STATE_MAP_GEOS = {"County": (county_metric_cols, generate_county_map)}
+_STATE_MAP_GEOS = {
+    "County": (county_metric_cols, generate_county_map),
+    "Congressional District": (congressional_district_metric_cols, generate_state_cd_map),
+}
 if DEV_MODE:
     _STATE_MAP_GEOS["Tract"] = (tract_metric_cols, generate_tract_map)
 
@@ -1625,6 +1643,8 @@ def update_state_map_exclude_options(geo, selected_state):
 def update_state_map(metrics, geo, selected_state, pop_min, exclude, normalize):
     if geo == "Tract":
         return generate_tract_map(metrics, selected_state, pop_min, exclude, bool(normalize))
+    if geo == "Congressional District":
+        return generate_state_cd_map(metrics, selected_state, bool(normalize))
     return generate_county_map(metrics, selected_state, bool(normalize))
 
 
