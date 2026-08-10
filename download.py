@@ -1,30 +1,23 @@
 """Download ACS 5-year census data and save to CSV."""
 
-import os
 import re
-import sys
 import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
+
+from census_common import MAX_RETRIES, log as _log, require_api_key, skip_if_downloaded
 
 ACS_YEAR = 2024
 ACS_URL = f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5"
 
 
-def _log(msg):
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
-
-
 _start = time.time()
 _log("Starting Census download")
 
-# Authentication
-load_dotenv()
-census_api_key = os.getenv("census_api_key")
+census_api_key = require_api_key()
 
 _OUTPUTS = [
     f"c_state_{ACS_YEAR}.csv",
@@ -36,9 +29,7 @@ _OUTPUTS = [
     f"c_congressional_district_{ACS_YEAR}.csv",
     f"state_name_{ACS_YEAR}.csv",
 ]
-if "--force" not in sys.argv and all(os.path.exists(f) for f in _OUTPUTS):
-    _log(f"ACS {ACS_YEAR} data already downloaded. Run with --force to re-download.")
-    sys.exit(0)
+skip_if_downloaded(_OUTPUTS, f"ACS {ACS_YEAR} data")
 
 # Load files
 zcta_to_dma = pd.read_csv("zcta_to_dma.csv", dtype={"zcta": object})
@@ -149,8 +140,9 @@ for level in geo_level:
     )
 
 # Parallel download helpers ########################################################################
+# Lower than census_common.MAX_WORKERS: these calls fan out per state/county, so
+# each worker issues many requests.
 MAX_WORKERS = 3
-MAX_RETRIES = 3
 
 
 def _fetch_geo(for_clause, in_clause, merge_cols):

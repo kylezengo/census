@@ -1,32 +1,30 @@
 """Download ACS 5-year time series (2009-2024) at state and county level."""
 
-import os
-import sys
 import time
 import requests
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from census_common import MAX_RETRIES, MAX_WORKERS, log as _log, require_api_key, skip_if_downloaded
 
 ACS_BASE = "https://api.census.gov/data/{year}/acs/acs5"
 YEARS = list(range(2009, 2025))
 
-
-def _log(msg):
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
-
-
 _start = time.time()
 _log(f"Starting timeseries download ({len(YEARS)} years, state + county)")
 
-load_dotenv()
-census_api_key = os.getenv("census_api_key")
+census_api_key = require_api_key()
 
-_OUTPUTS = ["c_timeseries_state.csv", "c_timeseries_county.csv"]
-if "--force" not in sys.argv and all(os.path.exists(f) for f in _OUTPUTS):
-    _log("Timeseries data already downloaded. Run with --force to re-download.")
-    sys.exit(0)
+skip_if_downloaded(
+    [
+        "c_timeseries_state.csv",
+        "c_timeseries_county.csv",
+        "c_timeseries_state_race.csv",
+        "c_timeseries_county_race.csv",
+    ],
+    "Timeseries data",
+)
 
 # Focused summary variables — all fit in one API call per year per geo level
 VARS = [
@@ -80,14 +78,65 @@ RENAME = {
     "B25003_003E": "_tenure_renter",
 }
 
-MAX_RETRIES = 3
-MAX_WORKERS = 6
-
 # B23025 (Employment Status) and B15003 (Educational Attainment) introduced in 2012
 VARS_PRE2012 = [
     v for v in VARS if not v.startswith("B23025") and not v.startswith("B15003")
 ]
 VAR_STR_PRE2012 = ",".join(VARS_PRE2012)
+
+# Race-iterated tables ##########################################################################
+# ACS iterates these tables by race/ethnicity via a letter suffix. All are available back to
+# 2009, so the race series covers the same span as the all-races series above.
+# Note the groups overlap: "White alone" includes Hispanic white respondents, who are also
+# counted in "Hispanic or Latino". "White alone, not Hispanic" is the non-overlapping variant.
+RACE_SUFFIXES = {
+    "A": "White alone",
+    "B": "Black",
+    "C": "American Indian / Alaska Native",
+    "D": "Asian",
+    "E": "Native Hawaiian / Pacific Islander",
+    "F": "Some other race",
+    "G": "Two or more races",
+    "H": "White (non-Hispanic)",
+    "I": "Hispanic or Latino",
+}
+
+# 18 vars per race. All 9 races at once would be 162 — over the API's 50-var cap — so we
+# issue one request per race per year.
+RACE_VAR_TEMPLATES = {
+    "Pop": ["B01001{s}_001E"],
+    "Median Household Income": ["B19013{s}_001E"],
+    "_poverty_total": ["B17001{s}_001E"],
+    "_poverty_below": ["B17001{s}_002E"],
+    "_educ_total": ["C15002{s}_001E"],
+    "_educ_bachelors_plus": ["C15002{s}_006E", "C15002{s}_011E"],  # male + female
+    "_tenure_total": ["B25003{s}_001E"],
+    "_tenure_owner": ["B25003{s}_002E"],
+    "_tenure_renter": ["B25003{s}_003E"],
+    # C23002 splits by sex and by under/over 65; civilian labor force and unemployed
+    # each need four lines summed.
+    "_labor_force": [
+        "C23002{s}_006E",  # male 16-64 civilian in labor force
+        "C23002{s}_011E",  # male 65+ in labor force
+        "C23002{s}_019E",  # female 16-64 civilian in labor force
+        "C23002{s}_024E",  # female 65+ in labor force
+    ],
+    "_unemployed": [
+        "C23002{s}_008E",
+        "C23002{s}_013E",
+        "C23002{s}_021E",
+        "C23002{s}_026E",
+    ],
+}
+
+
+def _race_vars(suffix):
+    """Flat list of API variable names for one race suffix."""
+    return [
+        tmpl.format(s=suffix)
+        for tmpls in RACE_VAR_TEMPLATES.values()
+        for tmpl in tmpls
+    ]
 
 
 def _fetch_all_years(for_clause, label):
@@ -131,6 +180,75 @@ def _fetch_year(year, for_clause):
     return None
 
 
+def _fetch_race_year(year, suffix, for_clause):
+    """Fetch one race's variables for one year. Returns a df with a `race` column."""
+    url = ACS_BASE.format(year=year)
+    var_str = ",".join(_race_vars(suffix))
+    params = {"get": f"NAME,{var_str}", "for": for_clause, "key": census_api_key}
+    for attempt in range(MAX_RETRIES):
+        try:
+            r = requests.get(url, params=params, timeout=30)
+            if r.status_code == 200:
+                data = r.json()
+                df = pd.DataFrame(data[1:], columns=data[0])
+                df["year"] = year
+                # Collapse this race's suffixed columns into suffix-free metric names
+                # before concatenation, so all races share one schema.
+                out = df[["NAME", "year"]].copy()
+                out["race"] = RACE_SUFFIXES[suffix]
+                for out_name, tmpls in RACE_VAR_TEMPLATES.items():
+                    cols = [tmpl.format(s=suffix) for tmpl in tmpls]
+                    vals = df[cols].apply(pd.to_numeric, errors="coerce").replace(
+                        -666666666.0, np.nan
+                    )
+                    out[out_name] = vals.sum(axis=1, min_count=1)
+                return out
+            if r.status_code == 404:
+                return None
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(2**attempt)
+            else:
+                _log(f"  {year} {suffix} ERROR {r.status_code}: {r.text[:120]}")
+        except requests.RequestException as e:
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(2**attempt)
+            else:
+                _log(f"  {year} {suffix} EXCEPTION: {e}")
+    return None
+
+
+def _fetch_all_race_years(for_clause, label):
+    """One request per (year, race) — 16 x 9 = 144 calls per geo level."""
+    jobs = [(y, s) for y in YEARS for s in RACE_SUFFIXES]
+    _log(f"Fetching {label} race timeseries ({len(jobs)} requests, {MAX_WORKERS} workers)...")
+    dfs = []
+    done = 0
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {
+            executor.submit(_fetch_race_year, y, s, for_clause): (y, s) for y, s in jobs
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            done += 1
+            if result is not None:
+                dfs.append(result)
+            if done % 25 == 0 or done == len(jobs):
+                _log(f"  {label} race: {done}/{len(jobs)} requests done")
+    return pd.concat(dfs, ignore_index=True)
+
+
+def _process_race(out):
+    """Derive pct_ metrics from the collapsed per-race counts, drop intermediates."""
+    out = out.copy()
+    out["pct_poverty"] = out["_poverty_below"] / out["_poverty_total"]
+    out["pct_bachelors_plus"] = out["_educ_bachelors_plus"] / out["_educ_total"]
+    out["pct_unemployed"] = out["_unemployed"] / out["_labor_force"]
+    out["pct_owner_occupied"] = out["_tenure_owner"] / out["_tenure_total"]
+    out["pct_renter_occupied"] = out["_tenure_renter"] / out["_tenure_total"]
+    out.replace([np.inf, -np.inf], np.nan, inplace=True)
+    return out.drop(columns=[c for c in out.columns if c.startswith("_")])
+
+
 def _process(df):
     """Cast to float, clean sentinel, derive pct_ metrics, drop intermediates."""
     for col in VARS:
@@ -163,11 +281,14 @@ def _process(df):
     return df.drop(columns=[c for c in df.columns if c.startswith("_")])
 
 
-# State ########################################################################################
+# State (+ US total, appended as a "United States" row) ########################################
 ts_state = _process(_fetch_all_years("state:*", "state"))
 ts_state = ts_state.drop(columns=["state"], errors="ignore").rename(
     columns={"NAME": "state"}
 )
+ts_us = _process(_fetch_all_years("us:*", "us"))
+ts_us = ts_us.drop(columns=["us"], errors="ignore").rename(columns={"NAME": "state"})
+ts_state = pd.concat([ts_state, ts_us], ignore_index=True)
 ts_state = ts_state.sort_values(["state", "year"]).reset_index(drop=True)
 _log(
     f"State timeseries complete: {len(ts_state)} rows, {len(ts_state.columns)} columns"
@@ -182,9 +303,63 @@ _log(
     f"County timeseries complete: {len(ts_county)} rows, {len(ts_county.columns)} columns"
 )
 
+# Race-segmented (long format: one row per geography x year x race) ############################
+raw_state_race = _fetch_all_race_years("state:*", "state")
+raw_us_race = _fetch_all_race_years("us:*", "us")
+raw_county_race = _fetch_all_race_years("county:*", "county")
+
+ts_state_race = pd.concat(
+    [_process_race(raw_state_race), _process_race(raw_us_race)], ignore_index=True
+)
+ts_state_race = ts_state_race.rename(columns={"NAME": "state"})
+ts_state_race = ts_state_race.sort_values(["state", "race", "year"]).reset_index(drop=True)
+_log(f"State race timeseries complete: {len(ts_state_race)} rows")
+
+ts_county_race = _process_race(raw_county_race)
+ts_county_race = ts_county_race.sort_values(["NAME", "race", "year"]).reset_index(drop=True)
+_log(f"County race timeseries complete: {len(ts_county_race)} rows")
+
+# Backfill 2009-2011 education/unemployment in the all-races series ############################
+# B15003/B23025 only start in 2012, but the race-iterated C15002/C23002 reach back to
+# 2009. Groups A-G partition the population (H/I are overlays), so summing them
+# reproduces the all-races figure exactly — verified to 6dp against B15003 for 2012.
+_EXCLUSIVE_RACES = [
+    RACE_SUFFIXES[s] for s in "ABCDEFG"
+]
+
+
+def _backfill_pre2012(all_df, raw_race, name_col):
+    counts = raw_race[raw_race["race"].isin(_EXCLUSIVE_RACES)]
+    counts = counts[counts["year"] < 2012]
+    if counts.empty:
+        return all_df
+    agg = counts.groupby(["NAME", "year"], as_index=False)[
+        ["_educ_total", "_educ_bachelors_plus", "_labor_force", "_unemployed"]
+    ].sum(min_count=1)
+    agg["pct_bachelors_plus"] = agg["_educ_bachelors_plus"] / agg["_educ_total"]
+    agg["pct_unemployed"] = agg["_unemployed"] / agg["_labor_force"]
+    agg = agg.rename(columns={"NAME": name_col})[
+        [name_col, "year", "pct_bachelors_plus", "pct_unemployed"]
+    ]
+    merged = all_df.merge(agg, on=[name_col, "year"], how="left", suffixes=("", "_bf"))
+    for col in ["pct_bachelors_plus", "pct_unemployed"]:
+        merged[col] = merged[col].fillna(merged[f"{col}_bf"])
+    return merged.drop(columns=[c for c in merged.columns if c.endswith("_bf")])
+
+
+ts_state = _backfill_pre2012(
+    ts_state, pd.concat([raw_state_race, raw_us_race], ignore_index=True), "state"
+)
+ts_county = _backfill_pre2012(ts_county, raw_county_race, "NAME")
+_log("Backfilled 2009-2011 education/unemployment from race-iterated tables")
+
 # Save #########################################################################################
 ts_state.to_csv("c_timeseries_state.csv", index=False)
 _log("Saved c_timeseries_state.csv")
 ts_county.to_csv("c_timeseries_county.csv", index=False)
 _log("Saved c_timeseries_county.csv")
+ts_state_race.to_csv("c_timeseries_state_race.csv", index=False)
+_log("Saved c_timeseries_state_race.csv")
+ts_county_race.to_csv("c_timeseries_county_race.csv", index=False)
+_log("Saved c_timeseries_county_race.csv")
 _log(f"Done! Total time: {time.time() - _start:.0f}s")

@@ -1,6 +1,7 @@
 """Census Data Explorer — interactive demographic visualization app."""
 
 import os
+from functools import lru_cache
 
 import folium
 import geopandas as gpd
@@ -10,16 +11,36 @@ import plotly.express as px
 import plotly.io as pio
 from dash import Dash, html, dcc, Input, Output, State, callback_context
 
+# Static config: metric lists, presets, colors, CPI table, labels.
+from config import (
+    _MAX_TREND_SERIES,
+    _PCT_METRICS,
+    ACS_YEAR,
+    CORR_METRIC_GROUPS,
+    CPI,
+    CPI_COLS,
+    DEFAULT_VAR,
+    US_LABEL,
+    FEMALE_COLOR,
+    INCOME_COLOR,
+    MALE_COLOR,
+    METRIC_LABELS,
+    MF_COLOR,
+    RACE_DEFAULTS,
+    RACE_GROUPS,
+    RATIO_BASELINES,
+    SUGGESTED_ANIM_SCATTERS,
+    SUGGESTED_SCATTERS,
+    SUGGESTED_TRENDS,
+    TIMESERIES_METRICS,
+    TIMESERIES_RACE_METRICS,
+    TRENDS_VIEWS,
+)
+
 pio.templates.default = "plotly_white"
 
-ACS_YEAR = 2024
-DEFAULT_VAR = "Pop"
 DEV_MODE = os.environ.get("DEV_MODE") == "true"
 
-MALE_COLOR = "Blues"
-FEMALE_COLOR = "Reds"
-MF_COLOR = "RdBu"
-INCOME_COLOR = "Greens"
 
 # Load files ###################################################################################
 state_geom_raw = gpd.read_file("state_geom.shp")
@@ -42,6 +63,15 @@ c_state = pd.read_csv(f"c_state_{ACS_YEAR}.csv")
 c_dma = pd.read_csv(f"c_dma_{ACS_YEAR}.csv")
 ts_state = pd.read_csv("c_timeseries_state.csv")
 ts_county = pd.read_csv("c_timeseries_county.csv", dtype={"GEOID": object})
+# Categorical keys keep the long-format race frames small (463k county rows) and
+# make the per-callback `isin` filters ~4x faster than object dtype.
+_RACE_DTYPES = {"race": "category", "year": "int16"}
+ts_state_race = pd.read_csv(
+    "c_timeseries_state_race.csv", dtype={**_RACE_DTYPES, "state": "category"}
+)
+ts_county_race = pd.read_csv(
+    "c_timeseries_county_race.csv", dtype={**_RACE_DTYPES, "NAME": "category"}
+)
 c_county_state = pd.read_csv(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = pd.read_csv(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
 if DEV_MODE:
@@ -150,166 +180,21 @@ congressional_district_metric_cols = sorted(
 dmas = c_dma["dma"].unique()
 states = state_name["state_NAME"].unique()
 
-TIMESERIES_METRICS = [
-    "Pop",
-    "Median Household Income",
-    "Median Home Value",
-    "Median Gross Rent",
-    "pct_male",
-    "pct_white_nh",
-    "pct_black",
-    "pct_hispanic",
-    "pct_asian",
-    "pct_poverty",
-    "pct_unemployed",
-    "pct_bachelors_plus",
-    "pct_owner_occupied",
-    "pct_renter_occupied",
-    "price_to_rent_ratio",
-]
 
 TIMESERIES_GEOS = {
     "State": (ts_state, "state"),
     "County": (ts_county, "NAME"),
 }
 
+# Race-segmented series (long format: one row per geography x year x race)
+TIMESERIES_RACE_GEOS = {
+    "State": (ts_state_race, "state"),
+    "County": (ts_county_race, "NAME"),
+}
+
+
 _ts_state_defaults = ts_state.groupby("state")["Pop"].mean().nlargest(4).index.tolist()
 
-SUGGESTED_TRENDS = [
-    {
-        "label": "Income Growth",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Texas", "Florida"],
-        "metric": "Median Household Income",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "Home Values",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Texas", "Florida"],
-        "metric": "Median Home Value",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "Rent Pressure",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Texas", "Florida"],
-        "metric": "Median Gross Rent",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "Education Gains",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Texas", "Florida"],
-        "metric": "pct_bachelors_plus",
-        "inflate": [],
-    },
-    {
-        "label": "Latino Growth",
-        "geo_level": "State",
-        "geo": ["California", "Texas", "Florida", "Arizona"],
-        "metric": "pct_hispanic",
-        "inflate": [],
-    },
-    {
-        "label": "County Home Values",
-        "geo_level": "County",
-        "geo": [
-            "Los Angeles County, California",
-            "King County, Washington",
-            "Travis County, Texas",
-            "Mecklenburg County, North Carolina",
-            "Maricopa County, Arizona",
-        ],
-        "metric": "Median Home Value",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "County Income Growth",
-        "geo_level": "County",
-        "geo": [
-            "Los Angeles County, California",
-            "King County, Washington",
-            "Travis County, Texas",
-            "Mecklenburg County, North Carolina",
-            "Maricopa County, Arizona",
-        ],
-        "metric": "Median Household Income",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "NYC",
-        "geo_level": "County",
-        "geo": [
-            "New York County, New York",
-            "Kings County, New York",
-            "Queens County, New York",
-            "Bronx County, New York",
-            "Richmond County, New York",
-        ],
-        "metric": "Median Household Income",
-        "inflate": ["inflate"],
-    },
-]
-
-SUGGESTED_ANIM_SCATTERS = [
-    {
-        "label": "Poverty vs Income",
-        "geo_level": "State",
-        "x": "pct_poverty",
-        "y": "Median Household Income",
-        "color": "pct_black",
-        "size": "Pop",
-    },
-    {
-        "label": "Home Affordability",
-        "geo_level": "State",
-        "x": "Median Household Income",
-        "y": "Median Home Value",
-        "color": "pct_owner_occupied",
-        "size": "Pop",
-    },
-    {
-        "label": "Education vs Poverty",
-        "geo_level": "State",
-        "x": "pct_bachelors_plus",
-        "y": "pct_poverty",
-        "color": "pct_black",
-        "size": "Pop",
-    },
-    {
-        "label": "Rent vs Income",
-        "geo_level": "County",
-        "x": "Median Household Income",
-        "y": "Median Gross Rent",
-        "color": "pct_renter_occupied",
-        "size": "Pop",
-    },
-    {
-        "label": "Diversity Shift",
-        "geo_level": "State",
-        "x": "pct_white_nh",
-        "y": "pct_hispanic",
-        "color": "Median Household Income",
-        "size": "Pop",
-    },
-    {
-        "label": "Market Quality Over Time",
-        "geo_level": "State",
-        "x": "pct_bachelors_plus",
-        "y": "Median Household Income",
-        "color": "pct_poverty",
-        "size": "Pop",
-    },
-    {
-        "label": "Renter Market Growth",
-        "geo_level": "County",
-        "x": "pct_renter_occupied",
-        "y": "Median Gross Rent",
-        "color": "Pop",
-        "size": "Pop",
-    },
-]
 
 # Scatter geography config: name → (dataframe, label_col, metric_cols)
 SCATTER_GEOS = {
@@ -332,116 +217,6 @@ CORR_GEOS = {
     "Congressional District": (c_congressional_district, congressional_district_metric_cols),
 }
 
-CORR_METRIC_GROUPS = {
-    "Demographics": [
-        "pct_white_nh",
-        "pct_black",
-        "pct_hispanic",
-        "pct_asian",
-        "pct_aian",
-        "pct_nhpi",
-        "pct_other_race",
-        "pct_two_or_more",
-    ],
-    "Economics": [
-        "pct_poverty",
-        "pct_unemployed",
-        "pct_bachelors_plus",
-        "Household Income 200+_ratio",
-        "pct_male",
-        "pct_male_20 to 29 years",
-        "pct_male_30 to 39 years",
-    ],
-    "Housing": [
-        "pct_owner_occupied",
-        "pct_renter_occupied",
-        "Household Income 200+_ratio",
-        "pct_poverty",
-        "pct_white_nh",
-        "pct_black",
-    ],
-    "Advertiser": [
-        "Median Household Income",
-        "Household Income 200+_ratio",
-        "pct_bachelors_plus",
-        "pct_owner_occupied",
-        "pct_renter_occupied",
-        "pct_hispanic",
-        "pct_asian",
-        "pct_black",
-        "pct_poverty",
-        "pct_male_20 to 29 years",
-        "pct_male_30 to 39 years",
-    ],
-}
-
-# Suggested scatter presets
-SUGGESTED_SCATTERS = [
-    {
-        "label": "Race & Income",
-        "geo": "County",
-        "x": "pct_black",
-        "y": "Household Income 200+_ratio",
-        "color": "pct_hispanic",
-        "size": "Pop",
-    },
-    {
-        "label": "Young Adult Hubs",
-        "geo": "County",
-        "x": "pct_male_20 to 29 years",
-        "y": "Household Income 200+_ratio",
-        "color": "pct_hispanic",
-        "size": "Pop",
-    },
-    {
-        "label": "Homeownership Gap",
-        "geo": "County",
-        "x": "pct_black",
-        "y": "pct_owner_occupied",
-        "color": "Median Home Value",
-        "size": "Pop",
-    },
-    {
-        "label": "Value vs Income",
-        "geo": "ZCTA",
-        "x": "Median Household Income",
-        "y": "Median Home Value",
-        "color": "pct_bachelors_plus",
-        "size": "Pop",
-    },
-    {
-        "label": "Rent vs Value",
-        "geo": "ZCTA",
-        "x": "Median Home Value",
-        "y": "Median Gross Rent",
-        "color": "pct_owner_occupied",
-        "size": "Pop",
-    },
-    {
-        "label": "Gentrification Risk",
-        "geo": "ZCTA",
-        "x": "pct_poverty",
-        "y": "pct_bachelors_plus",
-        "color": "Median Gross Rent",
-        "size": "Pop",
-    },
-    {
-        "label": "Affluent DMAs",
-        "geo": "DMA",
-        "x": "pct_bachelors_plus",
-        "y": "Household Income 200+_ratio",
-        "color": "pct_owner_occupied",
-        "size": "Pop",
-    },
-    {
-        "label": "Premium Audience Size",
-        "geo": "County",
-        "x": "Median Household Income",
-        "y": "Pop",
-        "color": "Household Income 200+_ratio",
-        "size": None,
-    },
-]
 
 _btn_style = {
     "padding": "5px 12px",
@@ -452,27 +227,6 @@ _btn_style = {
     "border": "1px solid #ccc",
     "background": "#f8f8f8",
 }
-
-# CPI-U annual averages (BLS, all items) — used to express dollar metrics in 2022 dollars
-CPI = {
-    2009: 214.537,
-    2010: 218.056,
-    2011: 224.939,
-    2012: 229.594,
-    2013: 232.957,
-    2014: 236.736,
-    2015: 237.017,
-    2016: 240.007,
-    2017: 245.120,
-    2018: 251.107,
-    2019: 255.657,
-    2020: 258.811,
-    2021: 270.970,
-    2022: 292.655,
-    2023: 304.702,
-    2024: 314.175,
-}
-CPI_COLS = ["Median Household Income", "Median Home Value", "Median Gross Rent"]
 
 
 def _apply_cpi(df, year_col="year"):
@@ -516,27 +270,6 @@ def _get_color(metric):
     return MALE_COLOR
 
 
-METRIC_LABELS = {
-    "pct_male": "% Male",
-    "pct_white_alone": "% White (Alone)",
-    "pct_white_nh": "% White Non-Hispanic",
-    "pct_black": "% Black or African American",
-    "pct_hispanic": "% Hispanic or Latino",
-    "pct_asian": "% Asian",
-    "pct_aian": "% American Indian / Alaska Native",
-    "pct_nhpi": "% Native Hawaiian / Pacific Islander",
-    "pct_other_race": "% Some Other Race",
-    "pct_two_or_more": "% Two or More Races",
-    "pct_poverty": "% Below Poverty Line",
-    "pct_unemployed": "% Unemployed (of Labor Force)",
-    "pct_bachelors_plus": "% Bachelor's Degree or Higher",
-    "pct_owner_occupied": "% Owner-Occupied Housing",
-    "pct_renter_occupied": "% Renter-Occupied Housing",
-    "Household Income 200+_ratio": "% Households Income $200k+",
-    "price_to_rent_ratio": "Price-to-Rent Ratio",
-}
-
-
 def _metric_label(col):
     if col in METRIC_LABELS:
         return METRIC_LABELS[col]
@@ -576,9 +309,6 @@ def _fmt_coef(v):
     return f"{v:.4f}"
 
 
-_PCT_METRICS = {"Household Income 200+_ratio"}
-
-
 def _axis_fmt(metric):
     label = {"title": _metric_label(metric)}
     if metric in CPI_COLS:
@@ -586,6 +316,50 @@ def _axis_fmt(metric):
     if metric.startswith("pct_") or metric in _PCT_METRICS:
         return {**label, "tickformat": ".0%"}
     return label
+
+
+def _apply_trends_view(plot_df, metric, series_col, view, baseline_map=None):
+    """Rescale `metric` for the chosen view. Returns (df, y_title, y_axis_fmt).
+
+    indexed — each series divided by its own earliest non-null value x 100
+    ratio   — each row divided by the all-races baseline for its geography/year
+    """
+    if view == "indexed":
+        plot_df = plot_df.sort_values("year")
+        first = plot_df.groupby(series_col)[metric].transform("first")
+        plot_df = plot_df.assign(**{metric: plot_df[metric] / first * 100})
+        return (
+            plot_df,
+            f"{_metric_label(metric)} (indexed, first year = 100)",
+            {"tickformat": ",.0f"},
+        )
+    if view == "ratio":
+        plot_df = plot_df.assign(**{metric: plot_df[metric] / baseline_map})
+        return (
+            plot_df,
+            f"{_metric_label(metric)} (ratio to overall)",
+            {"tickformat": ".2f"},
+        )
+    fmt = _axis_fmt(metric)
+    return plot_df, fmt["title"], {**fmt, "tickformat": fmt.get("tickformat", _hover_fmt(metric))}
+
+
+@lru_cache(maxsize=None)
+def _keyed_baseline(geo_level, metric):
+    """All-races value keyed by (geography, year). Cached — the frames never change."""
+    all_df, all_name_col = TIMESERIES_GEOS[geo_level]
+    return all_df.set_index([all_name_col, "year"])[metric]
+
+
+@lru_cache(maxsize=None)
+def _us_baseline(metric):
+    """National all-races value by year, for the 'United States' ratio baseline."""
+    return ts_state[ts_state["state"] == US_LABEL].set_index("year")[metric].to_dict()
+
+
+def _acs5_window(year):
+    """ACS 5-year estimates are pooled: 2024 covers 2020-2024."""
+    return f"{year - 4}–{str(year)[2:]}"
 
 
 def _hover_fmt(metric):
@@ -973,24 +747,52 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Select Geography",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="trends-geo",
                                             options=sorted(ts_state["state"].unique()),
                                             value=_ts_state_defaults,
                                             multi=True,
-                                            placeholder="Select geographies to compare...",
+                                            placeholder="Select geographies to compare "
+                                            "(incl. United States)...",
+                                        ),
+                                        html.Label(
+                                            "Segment By",
+                                            style=_bold_mt,
+                                        ),
+                                        dcc.RadioItems(
+                                            id="trends-segment",
+                                            options=[
+                                                {"label": "  Geography", "value": "geo"},
+                                                {"label": "  Race", "value": "race"},
+                                            ],
+                                            value="geo",
+                                            labelStyle={
+                                                "display": "block",
+                                                "marginTop": "4px",
+                                            },
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label(
+                                                    "Race / Ethnicity",
+                                                    style=_bold_mt,
+                                                ),
+                                                dcc.Dropdown(
+                                                    id="trends-race",
+                                                    options=RACE_GROUPS,
+                                                    value=RACE_DEFAULTS,
+                                                    multi=True,
+                                                    placeholder="Select groups...",
+                                                ),
+                                            ],
+                                            id="trends-race-wrap",
+                                            style={"display": "none"},
                                         ),
                                         html.Label(
                                             "Metric",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="trends-metric",
@@ -998,10 +800,43 @@ app.layout = html.Div(
                                             value="Median Household Income",
                                             clearable=False,
                                         ),
+                                        html.Label(
+                                            "View",
+                                            style=_bold_mt,
+                                        ),
+                                        dcc.Dropdown(
+                                            id="trends-view",
+                                            options=[
+                                                {"label": v, "value": k}
+                                                for k, v in TRENDS_VIEWS.items()
+                                            ],
+                                            value="level",
+                                            clearable=False,
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label(
+                                                    "Baseline",
+                                                    style=_bold_mt,
+                                                ),
+                                                dcc.Dropdown(
+                                                    id="trends-baseline",
+                                                    options=[
+                                                        {"label": v, "value": k}
+                                                        for k, v in RATIO_BASELINES.items()
+                                                    ],
+                                                    value="self",
+                                                    clearable=False,
+                                                ),
+                                            ],
+                                            id="trends-baseline-wrap",
+                                            style={"display": "none"},
+                                        ),
                                         _inflate_checkbox("trends-inflate"),
                                         html.P(
-                                            "ACS 5-Year Estimates (rolling average). "
-                                            "Each point represents a 5-year window.",
+                                            "ACS 5-Year Estimates. Each point pools the "
+                                            "prior 5 years — 2024 covers 2020–2024 — so "
+                                            "trends lag real turning points.",
                                             style={
                                                 "fontSize": "11px",
                                                 "color": "#888",
@@ -1070,10 +905,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "X Axis",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="anim-x",
@@ -1083,10 +915,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Y Axis",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="anim-y",
@@ -1096,10 +925,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Color by (optional)",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="anim-color",
@@ -1110,10 +936,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Size by (optional)",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="anim-size",
@@ -1124,8 +947,9 @@ app.layout = html.Div(
                                         ),
                                         _inflate_checkbox("anim-inflate"),
                                         html.P(
-                                            "ACS 5-Year Estimates (rolling average). "
-                                            "Each point represents a 5-year window.",
+                                            "ACS 5-Year Estimates. Each point pools the "
+                                            "prior 5 years — 2024 covers 2020–2024 — so "
+                                            "trends lag real turning points.",
                                             style={
                                                 "fontSize": "11px",
                                                 "color": "#888",
@@ -1200,10 +1024,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "X Axis",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="scatter-x",
@@ -1213,10 +1034,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Y Axis",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="scatter-y",
@@ -1226,10 +1044,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Color by (optional)",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="scatter-color",
@@ -1240,10 +1055,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Size by (optional)",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="scatter-size",
@@ -1351,10 +1163,7 @@ app.layout = html.Div(
                                         ),
                                         html.Label(
                                             "Metrics",
-                                            style={
-                                                "fontWeight": "bold",
-                                                "marginTop": "12px",
-                                            },
+                                            style=_bold_mt,
                                         ),
                                         dcc.Dropdown(
                                             id="corr-metrics",
@@ -1690,9 +1499,7 @@ if DEV_MODE:
     prevent_initial_call=True,
 )
 def load_scatter_preset(*_):
-    triggered_id = callback_context.triggered[0]["prop_id"]
-    idx = int(triggered_id.split("-")[2].split(".")[0])
-    s = SUGGESTED_SCATTERS[idx]
+    s = SUGGESTED_SCATTERS[_triggered_idx("scatter-preset")]
     return s["geo"], s["x"], s["y"], s["color"], s.get("size")
 
 
@@ -1831,9 +1638,7 @@ def update_scatter(
     prevent_initial_call=True,
 )
 def load_anim_preset(*_):
-    triggered_id = callback_context.triggered[0]["prop_id"]
-    idx = int(triggered_id.split("-")[2].split(".")[0])
-    s = SUGGESTED_ANIM_SCATTERS[idx]
+    s = SUGGESTED_ANIM_SCATTERS[_triggered_idx("anim-preset")]
     return s["geo_level"], s["x"], s["y"], s["color"], s["size"]
 
 
@@ -1911,18 +1716,55 @@ def update_trends_geo_options(geo_level):
 
 
 @app.callback(
+    Output("trends-race-wrap", "style"),
+    Output("trends-metric", "options"),
+    Output("trends-metric", "value", allow_duplicate=True),
+    Input("trends-segment", "value"),
+    State("trends-metric", "value"),
+    prevent_initial_call=True,
+)
+def toggle_trends_segment(segment, metric):
+    """Race mode exposes the race picker and narrows to race-iterated metrics.
+
+    Options and value move together — home value / rent / pct_male have no race
+    iteration, so a metric that just left the list is swapped for a valid one.
+    """
+    if segment == "race":
+        if metric not in TIMESERIES_RACE_METRICS:
+            metric = "Median Household Income"
+        return {"display": "block"}, _make_options(TIMESERIES_RACE_METRICS), metric
+    return {"display": "none"}, _make_options(TIMESERIES_METRICS), metric
+
+
+@app.callback(
+    Output("trends-baseline-wrap", "style"), Input("trends-view", "value")
+)
+def toggle_trends_baseline(view):
+    return {"display": "block"} if view == "ratio" else {"display": "none"}
+
+
+@app.callback(
     Output("trends-geo-level", "value"),
     Output("trends-geo", "value"),
     Output("trends-metric", "value"),
     Output("trends-inflate", "value"),
+    Output("trends-segment", "value"),
+    Output("trends-race", "value"),
+    Output("trends-view", "value"),
     [Input(f"trends-preset-{i}", "n_clicks") for i in range(len(SUGGESTED_TRENDS))],
     prevent_initial_call=True,
 )
 def load_trends_preset(*_):
-    triggered_id = callback_context.triggered[0]["prop_id"]
-    idx = int(triggered_id.split("-")[2].split(".")[0])
-    s = SUGGESTED_TRENDS[idx]
-    return s["geo_level"], s["geo"], s["metric"], s["inflate"]
+    s = SUGGESTED_TRENDS[_triggered_idx("trends-preset")]
+    return (
+        s["geo_level"],
+        s["geo"],
+        s["metric"],
+        s["inflate"],
+        s.get("segment", "geo"),
+        s.get("race", RACE_DEFAULTS),
+        s.get("view", "level"),
+    )
 
 
 @app.callback(
@@ -1931,30 +1773,115 @@ def load_trends_preset(*_):
     Input("trends-geo", "value"),
     Input("trends-metric", "value"),
     Input("trends-inflate", "value"),
+    Input("trends-segment", "value"),
+    Input("trends-race", "value"),
+    Input("trends-view", "value"),
+    Input("trends-baseline", "value"),
 )
-def update_trends_chart(geo_level, geo_names, metric, inflate):
+def update_trends_chart(
+    geo_level, geo_names, metric, inflate, segment, races, view, baseline
+):
     if not geo_names or not metric:
         return px.line()
-    df, name_col = TIMESERIES_GEOS[geo_level]
-    plot_df = df[df[name_col].isin(geo_names)][["year", name_col, metric]].dropna(
-        subset=[metric]
-    )
+
+    if segment == "race":
+        if not races:
+            return px.line()
+        df, name_col = TIMESERIES_RACE_GEOS[geo_level]
+        plot_df = df[df[name_col].isin(geo_names) & df["race"].isin(races)][
+            ["year", name_col, "race", metric]
+        ].dropna(subset=[metric])
+        # One line per geography x race. With a single geography selected the
+        # prefix is redundant, so label by race alone. astype(str) because the
+        # key columns are categorical and don't support concatenation.
+        races_txt = plot_df["race"].astype(str)
+        if len(geo_names) > 1:
+            series = plot_df[name_col].astype(str) + " — " + races_txt
+            legend_title = f"{geo_level} / Race"
+        else:
+            series = races_txt
+            legend_title = "Race / Ethnicity"
+        plot_df = plot_df.assign(_series=series)
+        color_col = "_series"
+    else:
+        df, name_col = TIMESERIES_GEOS[geo_level]
+        plot_df = df[df[name_col].isin(geo_names)][["year", name_col, metric]].dropna(
+            subset=[metric]
+        )
+        color_col, legend_title = name_col, geo_level
+
     if inflate:
         plot_df = _apply_cpi(plot_df)
+
+    baseline_map = None
+    if view == "ratio":
+        # All-races value for the same year, from the geography itself or the US
+        if baseline == "us":
+            baseline_map = plot_df["year"].map(_us_baseline(metric))
+        else:
+            keyed = _keyed_baseline(geo_level, metric)
+            baseline_map = pd.Series(
+                pd.MultiIndex.from_arrays(
+                    [plot_df[name_col].astype(str), plot_df["year"]]
+                ).map(keyed),
+                index=plot_df.index,
+            )
+        baseline_map = pd.to_numeric(baseline_map, errors="coerce").replace(0, np.nan)
+
+    plot_df, y_title, y_fmt = _apply_trends_view(
+        plot_df, metric, color_col, view, baseline_map
+    )
+    plot_df = plot_df.dropna(subset=[metric])
+    if plot_df.empty:
+        return px.line()
+
+    # Each ACS 5-year point pools the prior 5 years; surface that in the hover
+    # so "2024" isn't misread as a single calendar year.
+    plot_df = plot_df.assign(_window=plot_df["year"].map(_acs5_window))
     fig = px.line(
         plot_df,
         x="year",
         y=metric,
-        color=name_col,
+        color=color_col,
         markers=True,
         color_discrete_sequence=px.colors.qualitative.Set2,
+        custom_data=["_window"],
     )
+    fig.update_traces(
+        hovertemplate=(
+            f"%{{fullData.name}}<br>ACS %{{customdata[0]}} (5-yr)<br>"
+            f"%{{y:{y_fmt['tickformat']}}}"
+            "<extra></extra>"
+        )
+    )
+    yaxis = {**y_fmt, "title": y_title}
     fig.update_layout(
         margin={"l": 40, "r": 20, "t": 20, "b": 40},
-        xaxis={"dtick": 1, "title": "Year"},
-        yaxis=_axis_fmt(metric),
-        legend_title=geo_level,
+        xaxis={"dtick": 1, "title": "Year (end of 5-year ACS window)"},
+        yaxis=yaxis,
+        legend_title=legend_title,
     )
+    # The qualitative palette only has 8 colours, so beyond that lines start
+    # sharing colours and the chart stops being readable.
+    n_series = plot_df[color_col].nunique()
+    if n_series > _MAX_TREND_SERIES:
+        fig.add_annotation(
+            text=(
+                f"⚠ {n_series} series — colours repeat above "
+                f"{_MAX_TREND_SERIES}. Narrow the selection to compare reliably."
+            ),
+            xref="paper",
+            yref="paper",
+            x=0,
+            y=1.06,
+            showarrow=False,
+            font={"size": 11, "color": "#b26a00"},
+            align="left",
+        )
+    if view == "ratio":
+        fig.add_hline(y=1, line_dash="dot", line_color="#999")
+    elif view == "indexed":
+        fig.add_hline(y=100, line_dash="dot", line_color="#999")
     return fig
 
 
@@ -1969,7 +1896,7 @@ def update_corr_options(geo_level, *_group_clicks):
     opts = _make_options(cols)
     triggered = callback_context.triggered[0]["prop_id"]
     if "corr-group" in triggered:
-        idx = int(triggered.split("-")[2].split(".")[0])
+        idx = _triggered_idx("corr-group")
         group_key = list(CORR_METRIC_GROUPS.keys())[idx]
         value = [m for m in CORR_METRIC_GROUPS[group_key] if m in cols]
     else:
@@ -2018,97 +1945,46 @@ _btn_active_style = {
     "fontWeight": "bold",
 }
 
-_N_TRENDS = len(SUGGESTED_TRENDS)
-_N_SCATTER = len(SUGGESTED_SCATTERS)
-_N_ANIM = len(SUGGESTED_ANIM_SCATTERS)
+def _triggered_idx(btn_prefix):
+    """Index of the preset button that fired the current callback."""
+    triggered = callback_context.triggered[0]["prop_id"]
+    return int(triggered.replace(f"{btn_prefix}-", "").split(".")[0])
 
 
-def _parse_preset_idx(triggered_id, prefix):
-    part = triggered_id.replace(f"{prefix}-preset-", "").split(".")[0]
-    return int(part)
+def _register_preset_highlight(btn_prefix, store_id, n):
+    """Wire a row of preset buttons to a click-to-toggle highlight.
+
+    btn_prefix — button ids are f"{btn_prefix}-{i}"
+    store_id   — dcc.Store holding the active index (None when nothing is active)
+    """
+
+    @app.callback(
+        Output(store_id, "data"),
+        [Input(f"{btn_prefix}-{i}", "n_clicks") for i in range(n)],
+        State(store_id, "data"),
+        prevent_initial_call=True,
+    )
+    def _update_active(*args):
+        *_, current = args
+        idx = _triggered_idx(btn_prefix)
+        return None if current == idx else idx
+
+    @app.callback(
+        [Output(f"{btn_prefix}-{i}", "style") for i in range(n)],
+        Input(store_id, "data"),
+    )
+    def _highlight(active):
+        return [_btn_active_style if i == active else _btn_style for i in range(n)]
 
 
-@app.callback(
-    Output("trends-active-preset", "data"),
-    [Input(f"trends-preset-{i}", "n_clicks") for i in range(_N_TRENDS)],
-    State("trends-active-preset", "data"),
-    prevent_initial_call=True,
+_register_preset_highlight("trends-preset", "trends-active-preset", len(SUGGESTED_TRENDS))
+_register_preset_highlight(
+    "scatter-preset", "scatter-active-preset", len(SUGGESTED_SCATTERS)
 )
-def _update_trends_active(*args):
-    *_, current = args
-    idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "trends")
-    return None if current == idx else idx
-
-
-@app.callback(
-    [Output(f"trends-preset-{i}", "style") for i in range(_N_TRENDS)],
-    Input("trends-active-preset", "data"),
+_register_preset_highlight(
+    "anim-preset", "anim-active-preset", len(SUGGESTED_ANIM_SCATTERS)
 )
-def _highlight_trends_presets(active):
-    return [_btn_active_style if i == active else _btn_style for i in range(_N_TRENDS)]
-
-
-@app.callback(
-    Output("scatter-active-preset", "data"),
-    [Input(f"scatter-preset-{i}", "n_clicks") for i in range(_N_SCATTER)],
-    State("scatter-active-preset", "data"),
-    prevent_initial_call=True,
-)
-def _update_scatter_active(*args):
-    *_, current = args
-    idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "scatter")
-    return None if current == idx else idx
-
-
-@app.callback(
-    [Output(f"scatter-preset-{i}", "style") for i in range(_N_SCATTER)],
-    Input("scatter-active-preset", "data"),
-)
-def _highlight_scatter_presets(active):
-    return [_btn_active_style if i == active else _btn_style for i in range(_N_SCATTER)]
-
-
-@app.callback(
-    Output("anim-active-preset", "data"),
-    [Input(f"anim-preset-{i}", "n_clicks") for i in range(_N_ANIM)],
-    State("anim-active-preset", "data"),
-    prevent_initial_call=True,
-)
-def _update_anim_active(*args):
-    *_, current = args
-    idx = _parse_preset_idx(callback_context.triggered[0]["prop_id"], "anim")
-    return None if current == idx else idx
-
-
-@app.callback(
-    [Output(f"anim-preset-{i}", "style") for i in range(_N_ANIM)],
-    Input("anim-active-preset", "data"),
-)
-def _highlight_anim_presets(active):
-    return [_btn_active_style if i == active else _btn_style for i in range(_N_ANIM)]
-
-
-_N_CORR_GROUPS = len(CORR_METRIC_GROUPS)
-
-
-@app.callback(
-    Output("corr-active-group", "data"),
-    [Input(f"corr-group-{i}", "n_clicks") for i in range(_N_CORR_GROUPS)],
-    State("corr-active-group", "data"),
-    prevent_initial_call=True,
-)
-def _update_corr_active_group(*args):
-    *_, current = args
-    idx = int(callback_context.triggered[0]["prop_id"].split("-")[2].split(".")[0])
-    return None if current == idx else idx
-
-
-@app.callback(
-    [Output(f"corr-group-{i}", "style") for i in range(_N_CORR_GROUPS)],
-    Input("corr-active-group", "data"),
-)
-def _highlight_corr_groups(active):
-    return [_btn_active_style if i == active else _btn_style for i in range(_N_CORR_GROUPS)]
+_register_preset_highlight("corr-group", "corr-active-group", len(CORR_METRIC_GROUPS))
 
 
 if __name__ == "__main__":
