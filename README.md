@@ -57,6 +57,7 @@ gsutil -m cp \
   c_zcta_dma_2024.csv c_congressional_district_2024.csv state_name_2024.csv \
   c_timeseries_state.csv c_timeseries_county.csv \
   c_timeseries_state_race.csv c_timeseries_county_race.csv \
+  c_timeseries_state_age.csv c_timeseries_county_age.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/
