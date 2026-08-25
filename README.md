@@ -36,12 +36,13 @@ DEV_MODE=true python app.py   # adds tract + block-group tabs (slow to load)
 
 ## Deploying
 
-Cloud Run, in GCP project `kylezengo` (under `zengokp-org`).
+Cloud Run, in GCP project `kylezengo` (id `project-c7d7310f-ae74-4c95-b02`,
+under `zengokp-org`).
 
 **One-time setup:**
 
 ```bash
-gcloud config set project kylezengo
+gcloud config set project project-c7d7310f-ae74-4c95-b02
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
   containerregistry.googleapis.com storage.googleapis.com
 ```
@@ -67,8 +68,13 @@ file list in sync when adding new data.
 **Deploy:**
 
 ```bash
-gcloud builds submit --config cloudbuild.yaml
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions _TAG=$(git rev-parse --short HEAD)
 ```
+
+`_TAG` names the image; passing the git sha keeps images traceable to
+commits (it defaults to `manual`). `$COMMIT_SHA` only works from a build
+trigger, not `builds submit`.
 
 The Cloud Run service account needs `roles/storage.objectViewer` on the bucket.
 
