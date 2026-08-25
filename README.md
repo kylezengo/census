@@ -36,20 +36,45 @@ DEV_MODE=true python app.py   # adds tract + block-group tabs (slow to load)
 
 ## Deploying
 
-Cloud Run, via `cloudbuild.yaml`:
+Cloud Run, in GCP project `kylezengo` (under `zengokp-org`).
+
+**One-time setup:**
 
 ```bash
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions _GCS_BUCKET=your-bucket-name
+gcloud config set project kylezengo
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  containerregistry.googleapis.com storage.googleapis.com
 ```
 
-The data files aren't in the repo — `fetch_data.py` pulls them from that
-bucket at container start, so **upload new data there before deploying** and
-keep its file list in sync.
+**Upload the data** — it isn't in the repo, and `fetch_data.py` pulls it from
+GCS at container start. Only the production set is needed (~324 MB); the tract
+and block-group files are `DEV_MODE` only.
 
-Sized at 2 GB memory: peak RSS is ~985 MB while loading ~315 MB of data, so
-1 GB leaves too little headroom. Scales to zero between visits; the tradeoff
-is a slow (~30s) first request after idle.
+```bash
+gsutil -m cp \
+  c_state_2024.csv c_dma_2024.csv c_county_state_2024.csv \
+  c_zcta_dma_2024.csv c_congressional_district_2024.csv state_name_2024.csv \
+  c_timeseries_state.csv c_timeseries_county.csv \
+  c_timeseries_state_race.csv c_timeseries_county_race.csv \
+  zcta_to_dma.csv \
+  state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
+  gs://kylezengo-census-data/
+```
+
+Re-upload whenever you re-run a download script, and keep `fetch_data.py`'s
+file list in sync when adding new data.
+
+**Deploy:**
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
+
+The Cloud Run service account needs `roles/storage.objectViewer` on the bucket.
+
+Sized at 2 GB memory: peak RSS is ~985 MB while loading the data, so 1 GB
+leaves too little headroom. Scales to zero between visits; the tradeoff is a
+slow (~30s) first request after idle.
 
 ## Layout
 

@@ -1,6 +1,5 @@
 # Build and deploy to Cloud Run:
-#   gcloud builds submit --config cloudbuild.yaml \
-#     --substitutions _GCS_BUCKET=your-bucket-name
+#   gcloud builds submit --config cloudbuild.yaml
 #
 # The data files aren't in the repo — fetch_data.py pulls them from
 # _GCS_BUCKET at container start, so upload new data there before deploying.
@@ -8,7 +7,7 @@
 substitutions:
   _SERVICE: census-explorer
   _REGION: us-central1
-  _GCS_BUCKET: ""  # required — pass with --substitutions
+  _GCS_BUCKET: kylezengo-census-data
 
 steps:
   - name: gcr.io/cloud-builders/docker
