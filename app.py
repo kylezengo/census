@@ -59,25 +59,45 @@ dma_polygons_raw["dma_code"] = dma_polygons_raw["dma_code"].astype(str)
 
 dma_polygon_map = pd.read_csv("dma_polygon_map.csv")
 
-c_state = pd.read_csv(f"c_state_{ACS_YEAR}.csv")
-c_dma = pd.read_csv(f"c_dma_{ACS_YEAR}.csv")
-ts_state = pd.read_csv("c_timeseries_state.csv")
-ts_county = pd.read_csv("c_timeseries_county.csv", dtype={"GEOID": object})
+def _read_acs(path, **kwargs):
+    """Read an ACS CSV with float columns as float32.
+
+    These are survey estimates with margins of error in the thousands, so
+    float32 (~7 significant digits) is far more precision than the data
+    carries. Halves the memory of the wide tables — c_zcta_dma alone drops
+    from 134 MB to 70 MB. Dtypes are resolved from a small sample and applied
+    during parsing, so the float64 copy is never materialised.
+    """
+    explicit = kwargs.pop("dtype", {})
+    sample = pd.read_csv(path, nrows=1000, dtype=explicit or None)
+    dtype = {
+        c: "float32"
+        for c in sample.select_dtypes("float64").columns
+        if c not in explicit
+    }
+    dtype.update(explicit)
+    return pd.read_csv(path, dtype=dtype, **kwargs)
+
+
+c_state = _read_acs(f"c_state_{ACS_YEAR}.csv")
+c_dma = _read_acs(f"c_dma_{ACS_YEAR}.csv")
+ts_state = _read_acs("c_timeseries_state.csv")
+ts_county = _read_acs("c_timeseries_county.csv", dtype={"GEOID": object})
 # Categorical keys keep the long-format race frames small (463k county rows) and
 # make the per-callback `isin` filters ~4x faster than object dtype.
 _RACE_DTYPES = {"race": "category", "year": "int16"}
-ts_state_race = pd.read_csv(
+ts_state_race = _read_acs(
     "c_timeseries_state_race.csv", dtype={**_RACE_DTYPES, "state": "category"}
 )
-ts_county_race = pd.read_csv(
+ts_county_race = _read_acs(
     "c_timeseries_county_race.csv", dtype={**_RACE_DTYPES, "NAME": "category"}
 )
-c_county_state = pd.read_csv(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
-c_zcta_dma = pd.read_csv(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
+c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
+c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
 if DEV_MODE:
-    c_tract = pd.read_csv(f"c_tract_{ACS_YEAR}.csv", dtype={"GEOID": object})
-    c_block_group = pd.read_csv(f"c_block_group_{ACS_YEAR}.csv", dtype={"GEOID": object})
-c_congressional_district = pd.read_csv(
+    c_tract = _read_acs(f"c_tract_{ACS_YEAR}.csv", dtype={"GEOID": object})
+    c_block_group = _read_acs(f"c_block_group_{ACS_YEAR}.csv", dtype={"GEOID": object})
+c_congressional_district = _read_acs(
     f"c_congressional_district_{ACS_YEAR}.csv", dtype={"GEOID": object}
 )
 
