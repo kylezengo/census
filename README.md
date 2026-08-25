@@ -36,9 +36,20 @@ DEV_MODE=true python app.py   # adds tract + block-group tabs (slow to load)
 
 ## Deploying
 
-`Dockerfile` builds a gunicorn image. At startup `fetch_data.py` pulls the
-data files from GCS (`GCS_BUCKET` env var) since they aren't in the repo —
-keep its file list in sync when adding new data.
+Cloud Run, via `cloudbuild.yaml`:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions _GCS_BUCKET=your-bucket-name
+```
+
+The data files aren't in the repo — `fetch_data.py` pulls them from that
+bucket at container start, so **upload new data there before deploying** and
+keep its file list in sync.
+
+Sized at 2 GB memory: peak RSS is ~985 MB while loading ~315 MB of data, so
+1 GB leaves too little headroom. Scales to zero between visits; the tradeoff
+is a slow (~30s) first request after idle.
 
 ## Layout
 

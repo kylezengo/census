@@ -1,0 +1,48 @@
+# Build and deploy to Cloud Run:
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions _GCS_BUCKET=your-bucket-name
+#
+# The data files aren't in the repo — fetch_data.py pulls them from
+# _GCS_BUCKET at container start, so upload new data there before deploying.
+
+substitutions:
+  _SERVICE: census-explorer
+  _REGION: us-central1
+  _GCS_BUCKET: ""  # required — pass with --substitutions
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "gcr.io/$PROJECT_ID/${_SERVICE}:$COMMIT_SHA",
+           "-t", "gcr.io/$PROJECT_ID/${_SERVICE}:latest", "."]
+
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "--all-tags", "gcr.io/$PROJECT_ID/${_SERVICE}"]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=gcr.io/$PROJECT_ID/${_SERVICE}:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      # Peak RSS is ~985 MB at startup. 1Gi would leave only ~39 MB of
+      # headroom and OOM under load, so 2Gi despite the float32 work.
+      - --memory=2Gi
+      - --cpu=2
+      # Startup downloads ~315 MB from GCS and parses it — well past the 4s default.
+      - --timeout=300
+      - --startup-probe=timeoutSeconds=240,periodSeconds=240,failureThreshold=1,tcpSocket.port=8080
+      # Dash keeps server-side state per process, so one worker, one instance.
+      - --max-instances=1
+      - --set-env-vars=GCS_BUCKET=${_GCS_BUCKET}
+
+images:
+  - gcr.io/$PROJECT_ID/${_SERVICE}:$COMMIT_SHA
+  - gcr.io/$PROJECT_ID/${_SERVICE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
