@@ -18,6 +18,8 @@ FILES = [
     # Timeseries (all years, no suffix)
     "c_timeseries_state.csv",
     "c_timeseries_county.csv",
+    "c_timeseries_state_race.csv",
+    "c_timeseries_county_race.csv",
     # Static mapping
     "zcta_to_dma.csv",
     # Shapefiles
