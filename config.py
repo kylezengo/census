@@ -51,6 +51,13 @@ TIMESERIES_RACE_METRICS = [
 ]
 
 
+# Householder age brackets (B19049). Ordered youngest to oldest so the legend
+# reads naturally; the ACS offers no other metric broken out this way.
+AGE_BRACKETS = ["Under 25", "25 to 44", "45 to 64", "65 and over"]
+
+TIMESERIES_AGE_METRICS = ["Median Household Income"]
+
+
 RACE_GROUPS = [
     "White (non-Hispanic)",
     "Black",
@@ -89,13 +96,6 @@ _MAX_TREND_SERIES = 8
 # Presets ####################################################################
 SUGGESTED_TRENDS = [
     {
-        "label": "Home Values",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Texas", "Florida"],
-        "metric": "Median Home Value",
-        "inflate": ["inflate"],
-    },
-    {
         # Same data as ratios: Black income sits ~0.68 of the national median
         # in both 2009 and 2024 — 15 years of growth, no relative movement.
         "label": "Income Gap",
@@ -131,6 +131,17 @@ SUGGESTED_TRENDS = [
         "segment": "race",
         "race": RACE_DEFAULTS,
         "view": "ratio",
+    },
+    {
+        # Under-25 households earned $26.4k in 2009 vs $63.1k for 45-64 —
+        # and the young-household line barely moved until ~2016.
+        "label": "Income by Age",
+        "geo_level": "State",
+        "geo": [US_LABEL],
+        "metric": "Median Household Income",
+        "inflate": ["inflate"],
+        "segment": "age",
+        "race": AGE_BRACKETS,
     },
     {
         # Same race, different states — shows geography matters as much as

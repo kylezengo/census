@@ -20,6 +20,8 @@ FILES = [
     "c_timeseries_county.csv",
     "c_timeseries_state_race.csv",
     "c_timeseries_county_race.csv",
+    "c_timeseries_state_age.csv",
+    "c_timeseries_county_age.csv",
     # Static mapping
     "zcta_to_dma.csv",
     # Shapefiles

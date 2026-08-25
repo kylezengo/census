@@ -22,6 +22,8 @@ skip_if_downloaded(
         "c_timeseries_county.csv",
         "c_timeseries_state_race.csv",
         "c_timeseries_county_race.csv",
+        "c_timeseries_state_age.csv",
+        "c_timeseries_county_age.csv",
     ],
     "Timeseries data",
 )
@@ -128,6 +130,20 @@ RACE_VAR_TEMPLATES = {
         "C23002{s}_026E",
     ],
 }
+
+
+# Age-of-householder tables ####################################################################
+# B19049 breaks median household income by the householder's age. Only income is
+# offered this way — there is no age-iterated poverty/education/tenure — so age
+# segmentation covers a single metric. Available 2009-2024, same span as the rest.
+AGE_BRACKETS = {
+    "B19049_002E": "Under 25",
+    "B19049_003E": "25 to 44",
+    "B19049_004E": "45 to 64",
+    "B19049_005E": "65 and over",
+}
+
+AGE_VAR_STR = ",".join(AGE_BRACKETS)
 
 
 def _race_vars(suffix):
@@ -237,6 +253,50 @@ def _fetch_all_race_years(for_clause, label):
     return pd.concat(dfs, ignore_index=True)
 
 
+def _fetch_age_year(year, for_clause):
+    """One request per year: all four age brackets, reshaped long."""
+    url = ACS_BASE.format(year=year)
+    params = {"get": f"NAME,{AGE_VAR_STR}", "for": for_clause, "key": census_api_key}
+    for attempt in range(MAX_RETRIES):
+        try:
+            r = requests.get(url, params=params, timeout=30)
+            if r.status_code == 200:
+                data = r.json()
+                df = pd.DataFrame(data[1:], columns=data[0])
+                out = df[["NAME"]].copy()
+                for col, label in AGE_BRACKETS.items():
+                    out[label] = pd.to_numeric(df[col], errors="coerce").replace(
+                        -666666666.0, np.nan
+                    )
+                out = out.melt(
+                    id_vars="NAME",
+                    var_name="age",
+                    value_name="Median Household Income",
+                )
+                out["year"] = year
+                return out
+            if r.status_code == 404:
+                return None
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(2**attempt)
+            else:
+                _log(f"  {year} age ERROR {r.status_code}: {r.text[:120]}")
+        except requests.RequestException as e:
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(2**attempt)
+            else:
+                _log(f"  {year} age EXCEPTION: {e}")
+    return None
+
+
+def _fetch_all_age_years(for_clause, label):
+    _log(f"Fetching {label} age timeseries ({len(YEARS)} years)...")
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = [executor.submit(_fetch_age_year, y, for_clause) for y in YEARS]
+        dfs = [f.result() for f in as_completed(futures)]
+    return pd.concat([d for d in dfs if d is not None], ignore_index=True)
+
+
 def _process_race(out):
     """Derive pct_ metrics from the collapsed per-race counts, drop intermediates."""
     out = out.copy()
@@ -319,6 +379,18 @@ ts_county_race = _process_race(raw_county_race)
 ts_county_race = ts_county_race.sort_values(["NAME", "race", "year"]).reset_index(drop=True)
 _log(f"County race timeseries complete: {len(ts_county_race)} rows")
 
+# Age-of-householder income (long format: geography x year x age bracket) ######################
+ts_state_age = pd.concat(
+    [_fetch_all_age_years("state:*", "state"), _fetch_all_age_years("us:*", "us")],
+    ignore_index=True,
+).rename(columns={"NAME": "state"})
+ts_state_age = ts_state_age.sort_values(["state", "age", "year"]).reset_index(drop=True)
+_log(f"State age timeseries complete: {len(ts_state_age)} rows")
+
+ts_county_age = _fetch_all_age_years("county:*", "county")
+ts_county_age = ts_county_age.sort_values(["NAME", "age", "year"]).reset_index(drop=True)
+_log(f"County age timeseries complete: {len(ts_county_age)} rows")
+
 # Backfill 2009-2011 education/unemployment in the all-races series ############################
 # B15003/B23025 only start in 2012, but the race-iterated C15002/C23002 reach back to
 # 2009. Groups A-G partition the population (H/I are overlays), so summing them
@@ -362,4 +434,8 @@ ts_state_race.to_csv("c_timeseries_state_race.csv", index=False)
 _log("Saved c_timeseries_state_race.csv")
 ts_county_race.to_csv("c_timeseries_county_race.csv", index=False)
 _log("Saved c_timeseries_county_race.csv")
+ts_state_age.to_csv("c_timeseries_state_age.csv", index=False)
+_log("Saved c_timeseries_state_age.csv")
+ts_county_age.to_csv("c_timeseries_county_age.csv", index=False)
+_log("Saved c_timeseries_county_age.csv")
 _log(f"Done! Total time: {time.time() - _start:.0f}s")

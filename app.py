@@ -16,6 +16,7 @@ from config import (
     _MAX_TREND_SERIES,
     _PCT_METRICS,
     ACS_YEAR,
+    AGE_BRACKETS,
     CORR_METRIC_GROUPS,
     CPI,
     CPI_COLS,
@@ -33,6 +34,7 @@ from config import (
     SUGGESTED_SCATTERS,
     SUGGESTED_TRENDS,
     TIMESERIES_METRICS,
+    TIMESERIES_AGE_METRICS,
     TIMESERIES_RACE_METRICS,
     TRENDS_VIEWS,
 )
@@ -91,6 +93,13 @@ ts_state_race = _read_acs(
 )
 ts_county_race = _read_acs(
     "c_timeseries_county_race.csv", dtype={**_RACE_DTYPES, "NAME": "category"}
+)
+_AGE_DTYPES = {"age": "category", "year": "int16"}
+ts_state_age = _read_acs(
+    "c_timeseries_state_age.csv", dtype={**_AGE_DTYPES, "state": "category"}
+)
+ts_county_age = _read_acs(
+    "c_timeseries_county_age.csv", dtype={**_AGE_DTYPES, "NAME": "category"}
 )
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
@@ -210,6 +219,18 @@ TIMESERIES_GEOS = {
 TIMESERIES_RACE_GEOS = {
     "State": (ts_state_race, "state"),
     "County": (ts_county_race, "NAME"),
+}
+
+TIMESERIES_AGE_GEOS = {
+    "State": (ts_state_age, "state"),
+    "County": (ts_county_age, "NAME"),
+}
+
+# Segment modes beyond plain geography. Each is a long frame with one extra key
+# column, so they share a single code path in the chart callback.
+SEGMENTS = {
+    "race": (TIMESERIES_RACE_GEOS, "race", "Race / Ethnicity"),
+    "age": (TIMESERIES_AGE_GEOS, "age", "Householder Age"),
 }
 
 
@@ -786,6 +807,7 @@ app.layout = html.Div(
                                             options=[
                                                 {"label": "  Geography", "value": "geo"},
                                                 {"label": "  Race", "value": "race"},
+                                                {"label": "  Householder Age", "value": "age"},
                                             ],
                                             value="geo",
                                             labelStyle={
@@ -796,7 +818,8 @@ app.layout = html.Div(
                                         html.Div(
                                             [
                                                 html.Label(
-                                                    "Race / Ethnicity",
+                                                    "Groups",
+                                                    id="trends-race-label",
                                                     style=_bold_mt,
                                                 ),
                                                 dcc.Dropdown(
@@ -1739,23 +1762,54 @@ def update_trends_geo_options(geo_level):
 
 @app.callback(
     Output("trends-race-wrap", "style"),
+    Output("trends-race-label", "children"),
+    Output("trends-race", "options"),
+    Output("trends-race", "value", allow_duplicate=True),
     Output("trends-metric", "options"),
     Output("trends-metric", "value", allow_duplicate=True),
     Input("trends-segment", "value"),
+    State("trends-race", "value"),
     State("trends-metric", "value"),
     prevent_initial_call=True,
 )
-def toggle_trends_segment(segment, metric):
-    """Race mode exposes the race picker and narrows to race-iterated metrics.
+def toggle_trends_segment(segment, values, metric):
+    """Swap the group picker and metric list to match the segment mode.
 
-    Options and value move together — home value / rent / pct_male have no race
-    iteration, so a metric that just left the list is swapped for a valid one.
+    Options and values move together: each mode supports a different set of
+    metrics (home value and rent have no race iteration; age only covers
+    median income), so a metric that just left the list is replaced.
     """
     if segment == "race":
         if metric not in TIMESERIES_RACE_METRICS:
             metric = "Median Household Income"
-        return {"display": "block"}, _make_options(TIMESERIES_RACE_METRICS), metric
-    return {"display": "none"}, _make_options(TIMESERIES_METRICS), metric
+        if not set(values or []) & set(RACE_GROUPS):
+            values = RACE_DEFAULTS
+        return (
+            {"display": "block"},
+            "Race / Ethnicity",
+            RACE_GROUPS,
+            values,
+            _make_options(TIMESERIES_RACE_METRICS),
+            metric,
+        )
+    if segment == "age":
+        # B19049 is the only age-of-householder table, so income is the sole metric.
+        return (
+            {"display": "block"},
+            "Householder Age",
+            AGE_BRACKETS,
+            AGE_BRACKETS,
+            _make_options(TIMESERIES_AGE_METRICS),
+            TIMESERIES_AGE_METRICS[0],
+        )
+    return (
+        {"display": "none"},
+        "Groups",
+        RACE_GROUPS,
+        values,
+        _make_options(TIMESERIES_METRICS),
+        metric,
+    )
 
 
 @app.callback(
@@ -1801,28 +1855,30 @@ def load_trends_preset(*_):
     Input("trends-baseline", "value"),
 )
 def update_trends_chart(
-    geo_level, geo_names, metric, inflate, segment, races, view, baseline
+    geo_level, geo_names, metric, inflate, segment, segment_values, view, baseline
 ):
     if not geo_names or not metric:
         return px.line()
 
-    if segment == "race":
-        if not races:
+    spec = SEGMENTS.get(segment)
+    if spec:
+        if not segment_values:
             return px.line()
-        df, name_col = TIMESERIES_RACE_GEOS[geo_level]
-        plot_df = df[df[name_col].isin(geo_names) & df["race"].isin(races)][
-            ["year", name_col, "race", metric]
+        geos, key, label = spec
+        df, name_col = geos[geo_level]
+        plot_df = df[df[name_col].isin(geo_names) & df[key].isin(segment_values)][
+            ["year", name_col, key, metric]
         ].dropna(subset=[metric])
-        # One line per geography x race. With a single geography selected the
-        # prefix is redundant, so label by race alone. astype(str) because the
-        # key columns are categorical and don't support concatenation.
-        races_txt = plot_df["race"].astype(str)
+        # One line per geography x segment value. With a single geography the
+        # prefix is redundant, so label by the segment alone. astype(str) because
+        # the key columns are categorical and don't support concatenation.
+        values_txt = plot_df[key].astype(str)
         if len(geo_names) > 1:
-            series = plot_df[name_col].astype(str) + " — " + races_txt
-            legend_title = f"{geo_level} / Race"
+            series = plot_df[name_col].astype(str) + " — " + values_txt
+            legend_title = f"{geo_level} / {label}"
         else:
-            series = races_txt
-            legend_title = "Race / Ethnicity"
+            series = values_txt
+            legend_title = label
         plot_df = plot_df.assign(_series=series)
         color_col = "_series"
     else:

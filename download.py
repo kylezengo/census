@@ -54,7 +54,10 @@ var_misc = [
     "B19001_015E",  # N Household Income 125-149
     "B19001_016E",  # N Household Income 150-199
     "B19001_017E",  # N Household Income 200+
-    "B19049_003E",  # Median Household Income 25-44
+    "B19049_002E",  # Median Household Income, householder under 25
+    "B19049_003E",  # Median Household Income, householder 25-44
+    "B19049_004E",  # Median Household Income, householder 45-64
+    "B19049_005E",  # Median Household Income, householder 65+
     "B19013_001E",  # Median Household Income (overall)
     "B25077_001E",  # Median Home Value
     "B25064_001E",  # Median Gross Rent
