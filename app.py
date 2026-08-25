@@ -877,7 +877,9 @@ app.layout = html.Div(
                                         ),
                                         _inflate_checkbox("trends-inflate"),
                                         html.P(
-                                            "ACS 5-Year Estimates. Each point pools the "
+                                            "ACS 5-Year Estimates. Income-share metrics use "
+                                            "nominal dollars, so rising shares reflect "
+                                            "inflation as well as real gains. Each point pools the "
                                             "prior 5 years — 2024 covers 2020–2024 — so "
                                             "trends lag real turning points.",
                                             style={
@@ -990,7 +992,9 @@ app.layout = html.Div(
                                         ),
                                         _inflate_checkbox("anim-inflate"),
                                         html.P(
-                                            "ACS 5-Year Estimates. Each point pools the "
+                                            "ACS 5-Year Estimates. Income-share metrics use "
+                                            "nominal dollars, so rising shares reflect "
+                                            "inflation as well as real gains. Each point pools the "
                                             "prior 5 years — 2024 covers 2020–2024 — so "
                                             "trends lag real turning points.",
                                             style={

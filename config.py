@@ -55,7 +55,15 @@ TIMESERIES_RACE_METRICS = [
 # reads naturally; the ACS offers no other metric broken out this way.
 AGE_BRACKETS = ["Under 25", "25 to 44", "45 to 64", "65 and over"]
 
-TIMESERIES_AGE_METRICS = ["Median Household Income"]
+# B19037 crosses householder age with 16 income bins; these collapse it into
+# readable shares. Thresholds are nominal dollars, so the rising share reflects
+# inflation as well as real gains — noted in the UI.
+TIMESERIES_AGE_METRICS = [
+    "Median Household Income",
+    "pct_income_under_25k",
+    "pct_income_100k_plus",
+    "pct_income_200k_plus",
+]
 
 
 RACE_GROUPS = [
@@ -133,13 +141,14 @@ SUGGESTED_TRENDS = [
         "view": "ratio",
     },
     {
-        # Under-25 households earned $26.4k in 2009 vs $63.1k for 45-64 —
-        # and the young-household line barely moved until ~2016.
+        # Share of households above $100k, by householder age: under-25 goes
+        # 2.9% -> 13.9%, 45-64 goes 27.5% -> 49.0%. Nominal dollars, so part
+        # of the rise is inflation.
         "label": "Income by Age",
         "geo_level": "State",
         "geo": [US_LABEL],
-        "metric": "Median Household Income",
-        "inflate": ["inflate"],
+        "metric": "pct_income_100k_plus",
+        "inflate": [],
         "segment": "age",
         "race": AGE_BRACKETS,
     },
@@ -316,6 +325,9 @@ CPI_COLS = ["Median Household Income", "Median Home Value", "Median Gross Rent"]
 
 
 METRIC_LABELS = {
+    "pct_income_under_25k": "% Households Under $25k",
+    "pct_income_100k_plus": "% Households $100k+",
+    "pct_income_200k_plus": "% Households $200k+",
     "pct_male": "% Male",
     "pct_white_alone": "% White (Alone)",
     "pct_white_nh": "% White Non-Hispanic",

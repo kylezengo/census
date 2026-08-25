@@ -145,6 +145,33 @@ AGE_BRACKETS = {
 
 AGE_VAR_STR = ",".join(AGE_BRACKETS)
 
+# B19037 crosses the same four householder ages with 16 income bins. Each age
+# block is a subtotal followed by its 16 bins, so the bins for an age starting
+# at line N are N+1 .. N+16. We keep derived shares rather than every bin.
+AGE_BLOCK_STARTS = {
+    "Under 25": 2,
+    "25 to 44": 19,
+    "45 to 64": 36,
+    "65 and over": 53,
+}
+
+# Bin offsets within a block: 1-4 are the sub-$25k bins, 13-16 the $100k+ bins,
+# and 16 alone is $200k+.
+_BINS_UNDER_25K = range(1, 5)
+_BINS_100K_PLUS = range(13, 17)
+_BIN_200K_PLUS = 16
+
+
+def _dist_var(start, offset=0):
+    return f"B19037_{start + offset:03d}E"
+
+
+AGE_DIST_VARS = [
+    _dist_var(s, o)
+    for s in AGE_BLOCK_STARTS.values()
+    for o in [0, *_BINS_UNDER_25K, *_BINS_100K_PLUS]
+]
+
 
 def _race_vars(suffix):
     """Flat list of API variable names for one race suffix."""
@@ -256,24 +283,42 @@ def _fetch_all_race_years(for_clause, label):
 def _fetch_age_year(year, for_clause):
     """One request per year: all four age brackets, reshaped long."""
     url = ACS_BASE.format(year=year)
-    params = {"get": f"NAME,{AGE_VAR_STR}", "for": for_clause, "key": census_api_key}
+    get = ",".join(["NAME", AGE_VAR_STR, *AGE_DIST_VARS])
+    params = {"get": get, "for": for_clause, "key": census_api_key}
     for attempt in range(MAX_RETRIES):
         try:
             r = requests.get(url, params=params, timeout=30)
             if r.status_code == 200:
                 data = r.json()
                 df = pd.DataFrame(data[1:], columns=data[0])
-                out = df[["NAME"]].copy()
+                num = df.drop(columns=["NAME"]).apply(
+                    pd.to_numeric, errors="coerce"
+                ).replace(-666666666.0, np.nan)
+
+                frames = []
                 for col, label in AGE_BRACKETS.items():
-                    out[label] = pd.to_numeric(df[col], errors="coerce").replace(
-                        -666666666.0, np.nan
+                    start = AGE_BLOCK_STARTS[label]
+                    total = num[_dist_var(start)]
+                    part = df[["NAME"]].copy()
+                    part["age"] = label
+                    part["Median Household Income"] = num[col]
+                    part["pct_income_under_25k"] = (
+                        num[[_dist_var(start, o) for o in _BINS_UNDER_25K]].sum(axis=1)
+                        / total
                     )
-                out = out.melt(
-                    id_vars="NAME",
-                    var_name="age",
-                    value_name="Median Household Income",
-                )
+                    part["pct_income_100k_plus"] = (
+                        num[[_dist_var(start, o) for o in _BINS_100K_PLUS]].sum(axis=1)
+                        / total
+                    )
+                    part["pct_income_200k_plus"] = (
+                        num[_dist_var(start, _BIN_200K_PLUS)] / total
+                    )
+                    part["Households"] = total
+                    frames.append(part)
+
+                out = pd.concat(frames, ignore_index=True)
                 out["year"] = year
+                out.replace([np.inf, -np.inf], np.nan, inplace=True)
                 return out
             if r.status_code == 404:
                 return None
