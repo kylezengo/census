@@ -96,56 +96,6 @@ SUGGESTED_TRENDS = [
         "inflate": ["inflate"],
     },
     {
-        "label": "Rent Pressure",
-        "geo_level": "State",
-        "geo": ["California", "New York", "Texas", "Florida"],
-        "metric": "Median Gross Rent",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "Latino Growth",
-        "geo_level": "State",
-        "geo": ["California", "Texas", "Florida", "Arizona"],
-        "metric": "pct_hispanic",
-        "inflate": [],
-    },
-    {
-        "label": "County Home Values",
-        "geo_level": "County",
-        "geo": [
-            "Los Angeles County, California",
-            "King County, Washington",
-            "Travis County, Texas",
-            "Mecklenburg County, North Carolina",
-            "Maricopa County, Arizona",
-        ],
-        "metric": "Median Home Value",
-        "inflate": ["inflate"],
-    },
-    {
-        "label": "County Income Growth",
-        "geo_level": "County",
-        "geo": [
-            "Los Angeles County, California",
-            "King County, Washington",
-            "Travis County, Texas",
-            "Mecklenburg County, North Carolina",
-            "Maricopa County, Arizona",
-        ],
-        "metric": "Median Household Income",
-        "inflate": ["inflate"],
-    },
-    {
-        # Levels first: the plain picture of the income gap.
-        "label": "US Income by Race",
-        "geo_level": "State",
-        "geo": [US_LABEL],
-        "metric": "Median Household Income",
-        "inflate": ["inflate"],
-        "segment": "race",
-        "race": RACE_DEFAULTS,
-    },
-    {
         # Same data as ratios: Black income sits ~0.68 of the national median
         # in both 2009 and 2024 — 15 years of growth, no relative movement.
         "label": "Income Gap",
@@ -156,17 +106,6 @@ SUGGESTED_TRENDS = [
         "segment": "race",
         "race": RACE_DEFAULTS + ["American Indian / Alaska Native"],
         "view": "ratio",
-    },
-    {
-        # Every group's poverty rate peaks in 2014 and falls after — but the
-        # 2014 spike is 3x larger for Black/AIAN/Hispanic than for White NH.
-        "label": "Poverty Peak",
-        "geo_level": "State",
-        "geo": [US_LABEL],
-        "metric": "pct_poverty",
-        "inflate": [],
-        "segment": "race",
-        "race": RACE_DEFAULTS + ["American Indian / Alaska Native"],
     },
     {
         # The clearest convergence in the data: Hispanic 0.46 -> 0.58 and
@@ -203,19 +142,6 @@ SUGGESTED_TRENDS = [
         "inflate": [],
         "segment": "race",
         "race": ["Black"],
-    },
-    {
-        "label": "NYC",
-        "geo_level": "County",
-        "geo": [
-            "New York County, New York",
-            "Kings County, New York",
-            "Queens County, New York",
-            "Bronx County, New York",
-            "Richmond County, New York",
-        ],
-        "metric": "Median Household Income",
-        "inflate": ["inflate"],
     },
 ]
 
@@ -254,27 +180,11 @@ SUGGESTED_ANIM_SCATTERS = [
         "size": "Pop",
     },
     {
-        "label": "Diversity Shift",
-        "geo_level": "State",
-        "x": "pct_white_nh",
-        "y": "pct_hispanic",
-        "color": "Median Household Income",
-        "size": "Pop",
-    },
-    {
         "label": "Market Quality Over Time",
         "geo_level": "State",
         "x": "pct_bachelors_plus",
         "y": "Median Household Income",
         "color": "pct_poverty",
-        "size": "Pop",
-    },
-    {
-        "label": "Renter Market Growth",
-        "geo_level": "County",
-        "x": "pct_renter_occupied",
-        "y": "Median Gross Rent",
-        "color": "Pop",
         "size": "Pop",
     },
 ]
@@ -327,22 +237,6 @@ CORR_METRIC_GROUPS = {
 # Suggested scatter presets
 SUGGESTED_SCATTERS = [
     {
-        "label": "Race & Income",
-        "geo": "County",
-        "x": "pct_black",
-        "y": "Household Income 200+_ratio",
-        "color": "pct_hispanic",
-        "size": "Pop",
-    },
-    {
-        "label": "Young Adult Hubs",
-        "geo": "County",
-        "x": "pct_male_20 to 29 years",
-        "y": "Household Income 200+_ratio",
-        "color": "pct_hispanic",
-        "size": "Pop",
-    },
-    {
         "label": "Homeownership Gap",
         "geo": "County",
         "x": "pct_black",
@@ -381,14 +275,6 @@ SUGGESTED_SCATTERS = [
         "y": "Household Income 200+_ratio",
         "color": "pct_owner_occupied",
         "size": "Pop",
-    },
-    {
-        "label": "Premium Audience Size",
-        "geo": "County",
-        "x": "Median Household Income",
-        "y": "Pop",
-        "color": "Household Income 200+_ratio",
-        "size": None,
     },
 ]
 
