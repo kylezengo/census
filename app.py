@@ -1254,7 +1254,9 @@ def _build_choropleth_map(
                 label = s["id"]
                 val = 0
             s["properties"][label_key] = label
-            s["properties"][i] = val
+            # numpy scalars (float32 since the ACS loads downcast) aren't JSON
+            # serializable, and folium renders these properties straight to JSON.
+            s["properties"][i] = val.item() if hasattr(val, "item") else val
         folium.GeoJsonTooltip([label_key, i]).add_to(my_chp.geojson)
 
     folium.TileLayer(tiles="cartodb positron", control=False).add_to(m)
