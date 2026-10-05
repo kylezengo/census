@@ -1294,7 +1294,7 @@ def _build_choropleth_map(
 
     for i in selected_metrics:
         my_chp = folium.Choropleth(
-            tiles="cartodb positron",
+            tiles="Esri.WorldGrayCanvas",
             geo_data=geo_json,
             data=data_df,
             columns=[id_col, i],
@@ -1326,7 +1326,7 @@ def _build_choropleth_map(
             s["properties"][i] = val.item() if hasattr(val, "item") else val
         folium.GeoJsonTooltip([label_key, i]).add_to(my_chp.geojson)
 
-    folium.TileLayer(tiles="cartodb positron", control=False).add_to(m)
+    folium.TileLayer(tiles="Esri.WorldGrayCanvas", control=False).add_to(m)
     folium.LayerControl().add_to(m)
     m.fit_bounds(m.get_bounds(), padding=(10, 10))
     return m.get_root().render()
