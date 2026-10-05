@@ -96,11 +96,20 @@ ts_state_race = _read_acs(
 ts_county_race = _read_acs(
     "c_timeseries_county_race.csv", dtype={**_RACE_DTYPES, "NAME": "category"}
 )
-# NAEP scores join the state frames as extra columns. Its series starts in 2003,
+# NAEP scores join the state frames as extra columns. Its series starts in 1998,
 # so the outer join adds pre-ACS rows that are empty for every ACS metric.
-ts_state = ts_state.merge(
-    _read_acs("c_naep_state.csv"), on=["state", "year"], how="outer"
-).sort_values(["state", "year"], ignore_index=True)
+_naep_state = _read_acs("c_naep_state.csv")
+ts_state = ts_state.merge(_naep_state, on=["state", "year"], how="outer").sort_values(
+    ["state", "year"], ignore_index=True
+)
+# The cross-sectional state table (US map, scatter, correlation) takes the latest
+# NAEP cycle at or before ACS_YEAR — NAEP is biennial, so it may lag a year.
+_naep_year = _naep_state.loc[_naep_state["year"] <= ACS_YEAR, "year"].max()
+c_state = c_state.merge(
+    _naep_state[_naep_state["year"] == _naep_year].drop(columns="year"),
+    on="state",
+    how="left",
+)
 ts_state_race = (
     ts_state_race.merge(
         _read_acs("c_naep_state_race.csv", dtype={"year": "int16"}),
@@ -463,7 +472,13 @@ def _trunc_colorscale(name, low=0.30):
 
 
 def _is_ratio(metric):
-    return metric.startswith("pct_") or "_ratio" in metric or "Median" in metric
+    """True for metrics that aren't counts, so '% of population' leaves them alone."""
+    return (
+        metric.startswith("pct_")
+        or "_ratio" in metric
+        or "Median" in metric
+        or metric in NAEP_METRICS
+    )
 
 
 def _normalize_df(df, metrics):
