@@ -1893,6 +1893,7 @@ def toggle_trends_views(metric, view):
     Output("trends-segment", "value"),
     Output("trends-race", "value"),
     Output("trends-view", "value"),
+    Output("trends-baseline", "value"),
     [Input(f"trends-preset-{i}", "n_clicks") for i in range(len(SUGGESTED_TRENDS))],
     prevent_initial_call=True,
 )
@@ -1906,6 +1907,7 @@ def load_trends_preset(*_):
         s.get("segment", "geo"),
         s.get("race", RACE_DEFAULTS),
         s.get("view", "level"),
+        s.get("baseline", "self"),
     )
 
 

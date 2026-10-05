@@ -171,15 +171,18 @@ SUGGESTED_TRENDS = [
         "race": AGE_BRACKETS,
     },
     {
-        # Same race, different states — shows geography matters as much as
-        # race for outcomes. Utah/Idaho fell ~10pts while Vermont/Hawaii rose.
-        "label": "Black Ownership by State",
+        # The biggest relative moves in NAEP: grade 4 reading vs the national
+        # average, 1998 -> 2024. Mississippi -10 -> +4 and Louisiana -12 -> +2
+        # cross Maine +12 -> -5; Massachusetts holds ~+11. Mississippi retains
+        # third graders who fail a reading test, which flatters grade 4 — its
+        # grade 8 reading is still -3.
+        "label": "Southern Reading Surge",
         "geo_level": "State",
-        "geo": ["Utah", "Idaho", "Vermont", "Delaware", US_LABEL],
-        "metric": "pct_owner_occupied",
+        "geo": ["Mississippi", "Louisiana", "Maine", "Massachusetts"],
+        "metric": "naep_read_g4",
         "inflate": [],
-        "segment": "race",
-        "race": ["Black"],
+        "view": "diff",
+        "baseline": "us",
     },
 ]
 
