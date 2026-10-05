@@ -302,11 +302,14 @@ SUGGESTED_SCATTERS = [
         "size": "Pop",
     },
     {
-        "label": "Gentrification Risk",
-        "geo": "ZCTA",
+        # 2024 NAEP vs ACS poverty across the 50 states + DC: r = -0.63, the
+        # strongest NAEP link (grade 4 reading is only -0.36). Replaced
+        # "Gentrification Risk" (r = -0.29, a third ZCTA preset).
+        "label": "Poverty vs Math",
+        "geo": "State",
         "x": "pct_poverty",
-        "y": "pct_bachelors_plus",
-        "color": "Median Gross Rent",
+        "y": "naep_math_g8",
+        "color": "pct_bachelors_plus",
         "size": "Pop",
     },
     {
