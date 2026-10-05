@@ -2,7 +2,7 @@
 
 Interactive Dash app for exploring ACS demographic data — choropleth maps,
 scatter plots, correlation matrices, and time-series trends (including
-race-segmented trends back to 2009).
+race-segmented trends back to 2009), plus NAEP state test scores back to 2003.
 
 ## Setup
 
@@ -24,6 +24,7 @@ pass `--force` to re-download.
 | 2 | `download_shape_files.py` | `*_geom.shp` and friends |
 | 3 | `download.py` | `c_*_2024.csv` (cross-sectional ACS) |
 | 4 | `download_timeseries.py` | `c_timeseries_*.csv` (2009–2024, incl. race) |
+| 5 | `download_naep.py` | `c_naep_state*.csv` (NAEP scores, 2003–2024; no key needed) |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -58,6 +59,7 @@ gsutil -m cp \
   c_timeseries_state.csv c_timeseries_county.csv \
   c_timeseries_state_race.csv c_timeseries_county_race.csv \
   c_timeseries_state_age.csv c_timeseries_county_age.csv \
+  c_naep_state.csv c_naep_state_race.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/
@@ -97,6 +99,7 @@ slow (~30s) first request after idle.
 - **dma_polygons.geojson** — https://team.carto.com/u/andrew/tables/dma_master_polygons/public
 - **ZIPCodetoZCTACrosswalk2021UDS.xlsx** — https://udsmapper.org/zip-code-to-zcta-crosswalk/
 - **zip_to_dma.csv** — https://gist.github.com/clarkenheim/023882f8d77741f4d5347f80d95bc259
+- **c_naep_state*.csv** — NAEP Data Service, https://www.nationsreportcard.gov/DataService/
 
 ## Notes
 

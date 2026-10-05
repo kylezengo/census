@@ -22,6 +22,9 @@ FILES = [
     "c_timeseries_county_race.csv",
     "c_timeseries_state_age.csv",
     "c_timeseries_county_age.csv",
+    # NAEP state scores (merged into the state timeseries at load)
+    "c_naep_state.csv",
+    "c_naep_state_race.csv",
     # Static mapping
     "zcta_to_dma.csv",
     # Shapefiles

@@ -27,6 +27,7 @@ from config import (
     MALE_COLOR,
     METRIC_LABELS,
     MF_COLOR,
+    NAEP_METRICS,
     RACE_DEFAULTS,
     RACE_GROUPS,
     RATIO_BASELINES,
@@ -93,6 +94,20 @@ ts_state_race = _read_acs(
 )
 ts_county_race = _read_acs(
     "c_timeseries_county_race.csv", dtype={**_RACE_DTYPES, "NAME": "category"}
+)
+# NAEP scores join the state frames as extra columns. Its series starts in 2003,
+# so the outer join adds pre-ACS rows that are empty for every ACS metric.
+ts_state = ts_state.merge(
+    _read_acs("c_naep_state.csv"), on=["state", "year"], how="outer"
+).sort_values(["state", "year"], ignore_index=True)
+ts_state_race = (
+    ts_state_race.merge(
+        _read_acs("c_naep_state_race.csv", dtype={"year": "int16"}),
+        on=["state", "year", "race"],
+        how="outer",
+    )
+    .astype({"state": "category", "race": "category"})
+    .sort_values(["state", "race", "year"], ignore_index=True)
 )
 _AGE_DTYPES = {"age": "category", "year": "int16"}
 ts_state_age = _read_acs(
@@ -325,6 +340,11 @@ def _metric_label(col):
 
 def _make_options(cols):
     return [{"label": _metric_label(c), "value": c} for c in cols]
+
+
+def _with_naep(metrics, geo_level):
+    """NAEP only reports states, so its scores are offered at State level alone."""
+    return metrics + NAEP_METRICS if geo_level == "State" else metrics
 
 
 def _compute_trendline(df, x_metric, y_metric):
@@ -839,7 +859,9 @@ app.layout = html.Div(
                                         ),
                                         dcc.Dropdown(
                                             id="trends-metric",
-                                            options=_make_options(TIMESERIES_METRICS),
+                                            options=_make_options(
+                                                _with_naep(TIMESERIES_METRICS, "State")
+                                            ),
                                             value="Median Household Income",
                                             clearable=False,
                                         ),
@@ -886,6 +908,15 @@ app.layout = html.Div(
                                                 "fontSize": "11px",
                                                 "color": "#888",
                                                 "marginTop": "16px",
+                                            },
+                                        ),
+                                        html.P(
+                                            "NAEP scores are public-school averages; "
+                                            "United States = national public. NAEP's "
+                                            "Asian group includes Pacific Islanders.",
+                                            style={
+                                                "fontSize": "11px",
+                                                "color": "#888",
                                             },
                                         ),
                                     ],
@@ -1772,19 +1803,22 @@ def update_trends_geo_options(geo_level):
     Output("trends-metric", "options"),
     Output("trends-metric", "value", allow_duplicate=True),
     Input("trends-segment", "value"),
+    Input("trends-geo-level", "value"),
     State("trends-race", "value"),
     State("trends-metric", "value"),
     prevent_initial_call=True,
 )
-def toggle_trends_segment(segment, values, metric):
+def toggle_trends_segment(segment, geo_level, values, metric):
     """Swap the group picker and metric list to match the segment mode.
 
     Options and values move together: each mode supports a different set of
     metrics (home value and rent have no race iteration; age only covers
-    median income), so a metric that just left the list is replaced.
+    median income; NAEP is state-only), so a metric that just left the list
+    is replaced.
     """
     if segment == "race":
-        if metric not in TIMESERIES_RACE_METRICS:
+        metrics = _with_naep(TIMESERIES_RACE_METRICS, geo_level)
+        if metric not in metrics:
             metric = "Median Household Income"
         if not set(values or []) & set(RACE_GROUPS):
             values = RACE_DEFAULTS
@@ -1793,7 +1827,7 @@ def toggle_trends_segment(segment, values, metric):
             "Race / Ethnicity",
             RACE_GROUPS,
             values,
-            _make_options(TIMESERIES_RACE_METRICS),
+            _make_options(metrics),
             metric,
         )
     if segment == "age":
@@ -1806,12 +1840,15 @@ def toggle_trends_segment(segment, values, metric):
             _make_options(TIMESERIES_AGE_METRICS),
             TIMESERIES_AGE_METRICS[0],
         )
+    metrics = _with_naep(TIMESERIES_METRICS, geo_level)
+    if metric not in metrics:
+        metric = "Median Household Income"
     return (
         {"display": "none"},
         "Groups",
         RACE_GROUPS,
         values,
-        _make_options(TIMESERIES_METRICS),
+        _make_options(metrics),
         metric,
     )
 
@@ -1918,8 +1955,15 @@ def update_trends_chart(
         return px.line()
 
     # Each ACS 5-year point pools the prior 5 years; surface that in the hover
-    # so "2024" isn't misread as a single calendar year.
-    plot_df = plot_df.assign(_window=plot_df["year"].map(_acs5_window))
+    # so "2024" isn't misread as a single calendar year. NAEP is a single-year
+    # assessment, ticked only on the years it ran.
+    if metric in NAEP_METRICS:
+        source = plot_df["year"].map(lambda y: f"NAEP {y}")
+        xaxis = {"tickvals": sorted(plot_df["year"].unique()), "title": "Assessment year"}
+    else:
+        source = plot_df["year"].map(lambda y: f"ACS {_acs5_window(y)} (5-yr)")
+        xaxis = {"dtick": 1, "title": "Year (end of 5-year ACS window)"}
+    plot_df = plot_df.assign(_window=source)
     fig = px.line(
         plot_df,
         x="year",
@@ -1931,7 +1975,7 @@ def update_trends_chart(
     )
     fig.update_traces(
         hovertemplate=(
-            f"%{{fullData.name}}<br>ACS %{{customdata[0]}} (5-yr)<br>"
+            f"%{{fullData.name}}<br>%{{customdata[0]}}<br>"
             f"%{{y:{y_fmt['tickformat']}}}"
             "<extra></extra>"
         )
@@ -1939,7 +1983,7 @@ def update_trends_chart(
     yaxis = {**y_fmt, "title": y_title}
     fig.update_layout(
         margin={"l": 40, "r": 20, "t": 20, "b": 40},
-        xaxis={"dtick": 1, "title": "Year (end of 5-year ACS window)"},
+        xaxis=xaxis,
         yaxis=yaxis,
         legend_title=legend_title,
     )

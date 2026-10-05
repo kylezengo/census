@@ -51,6 +51,16 @@ TIMESERIES_RACE_METRICS = [
 ]
 
 
+# NAEP average scale scores (download_naep.py). State level only — NAEP has no
+# county results — and biennial, so these lines connect every other year.
+NAEP_METRICS = [
+    "naep_math_g4",
+    "naep_math_g8",
+    "naep_read_g4",
+    "naep_read_g8",
+]
+
+
 # Householder age brackets (B19049). Ordered youngest to oldest so the legend
 # reads naturally; the ACS offers no other metric broken out this way.
 AGE_BRACKETS = ["Under 25", "25 to 44", "45 to 64", "65 and over"]
@@ -345,6 +355,10 @@ METRIC_LABELS = {
     "pct_renter_occupied": "% Renter-Occupied Housing",
     "Household Income 200+_ratio": "% Households Income $200k+",
     "price_to_rent_ratio": "Price-to-Rent Ratio",
+    "naep_math_g4": "NAEP Math, Grade 4 (avg score)",
+    "naep_math_g8": "NAEP Math, Grade 8 (avg score)",
+    "naep_read_g4": "NAEP Reading, Grade 4 (avg score)",
+    "naep_read_g8": "NAEP Reading, Grade 8 (avg score)",
 }
 
 
