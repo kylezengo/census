@@ -101,6 +101,14 @@ TRENDS_VIEWS = {
 }
 
 
+# NAEP scale scores are interval data — 0 isn't "no skill" — so ratios and
+# indexes of them mean nothing. Gaps are reported in points instead.
+NAEP_VIEWS = {
+    "level": "Level",
+    "diff": "Difference from overall (points)",
+}
+
+
 # Ratio-mode baseline: the geography's own all-races value isolates racial
 # disparity from regional cost-of-living; the US value is a common yardstick
 # when comparing several geographies.

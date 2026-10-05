@@ -28,6 +28,7 @@ from config import (
     METRIC_LABELS,
     MF_COLOR,
     NAEP_METRICS,
+    NAEP_VIEWS,
     RACE_DEFAULTS,
     RACE_GROUPS,
     RATIO_BASELINES,
@@ -384,6 +385,7 @@ def _apply_trends_view(plot_df, metric, series_col, view, baseline_map=None):
 
     indexed — each series divided by its own earliest non-null value x 100
     ratio   — each row divided by the all-races baseline for its geography/year
+    diff    — each row minus that same baseline
     """
     if view == "indexed":
         plot_df = plot_df.sort_values("year")
@@ -393,6 +395,13 @@ def _apply_trends_view(plot_df, metric, series_col, view, baseline_map=None):
             plot_df,
             f"{_metric_label(metric)} (indexed, first year = 100)",
             {"tickformat": ",.0f"},
+        )
+    if view == "diff":
+        plot_df = plot_df.assign(**{metric: plot_df[metric] - baseline_map})
+        return (
+            plot_df,
+            f"{_metric_label(metric)} (difference from overall)",
+            {"tickformat": "+" + _hover_fmt(metric)},
         )
     if view == "ratio":
         plot_df = plot_df.assign(**{metric: plot_df[metric] / baseline_map})
@@ -1857,7 +1866,23 @@ def toggle_trends_segment(segment, geo_level, values, metric):
     Output("trends-baseline-wrap", "style"), Input("trends-view", "value")
 )
 def toggle_trends_baseline(view):
-    return {"display": "block"} if view == "ratio" else {"display": "none"}
+    show = view in ("ratio", "diff")
+    return {"display": "block"} if show else {"display": "none"}
+
+
+@app.callback(
+    Output("trends-view", "options"),
+    Output("trends-view", "value", allow_duplicate=True),
+    Input("trends-metric", "value"),
+    State("trends-view", "value"),
+    prevent_initial_call=True,
+)
+def toggle_trends_views(metric, view):
+    views = NAEP_VIEWS if metric in NAEP_METRICS else TRENDS_VIEWS
+    return (
+        [{"label": v, "value": k} for k, v in views.items()],
+        view if view in views else "level",
+    )
 
 
 @app.callback(
@@ -1932,8 +1957,14 @@ def update_trends_chart(
     if inflate:
         plot_df = _apply_cpi(plot_df)
 
+    # The view list swaps on metric change, but this callback can fire first
+    # with the old view; never draw a ratio or index of NAEP scores.
+    views = NAEP_VIEWS if metric in NAEP_METRICS else TRENDS_VIEWS
+    if view not in views:
+        view = "level"
+
     baseline_map = None
-    if view == "ratio":
+    if view in ("ratio", "diff"):
         # All-races value for the same year, from the geography itself or the US
         if baseline == "us":
             baseline_map = plot_df["year"].map(_us_baseline(metric))
@@ -1945,7 +1976,9 @@ def update_trends_chart(
                 ).map(keyed),
                 index=plot_df.index,
             )
-        baseline_map = pd.to_numeric(baseline_map, errors="coerce").replace(0, np.nan)
+        baseline_map = pd.to_numeric(baseline_map, errors="coerce")
+        if view == "ratio":
+            baseline_map = baseline_map.replace(0, np.nan)
 
     plot_df, y_title, y_fmt = _apply_trends_view(
         plot_df, metric, color_col, view, baseline_map
@@ -2006,6 +2039,8 @@ def update_trends_chart(
         )
     if view == "ratio":
         fig.add_hline(y=1, line_dash="dot", line_color="#999")
+    elif view == "diff":
+        fig.add_hline(y=0, line_dash="dot", line_color="#999")
     elif view == "indexed":
         fig.add_hline(y=100, line_dash="dot", line_color="#999")
     return fig
