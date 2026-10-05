@@ -1,9 +1,11 @@
 """Download NAEP (Nation's Report Card) state average scores, 2003-2024.
 
 Source: NAEP Data Service, https://www.nationsreportcard.gov/DataService/ (no key).
-Math and reading, grades 4 and 8 — the series where every state has been
-assessed every cycle since 2003. State results cover public schools only, so
-the national row is "National public" (NP), relabelled to match the ACS frames.
+Math and reading, grades 4 and 8. Every state has been assessed every cycle
+since 2003, when NCLB made participation mandatory; earlier years (math 2000,
+reading 1998/2002) cover the ~40 states that volunteered. State results cover
+public schools only, so the national row is "National public" (NP), relabelled
+to match the ACS frames.
 """
 
 import json
@@ -17,7 +19,15 @@ import requests
 from census_common import MAX_RETRIES, MAX_WORKERS, log as _log, skip_if_downloaded
 
 API = "https://www.nationsreportcard.gov/DataService/GetAdhocData.aspx"
-YEARS = [2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017, 2019, 2022, 2024]
+# Mandatory cycles from 2003, plus earlier voluntary ones. Pre-1998 state results
+# predate accommodations and NCES doesn't trend them, so they're left out. The
+# API rejects a request naming any year without a cycle for that subject, so
+# years are per subject.
+_MANDATORY_YEARS = [2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017, 2019, 2022, 2024]
+YEARS = {
+    "mathematics": [2000] + _MANDATORY_YEARS,
+    "reading": [1998, 2002] + _MANDATORY_YEARS,
+}
 
 # 50 states + DC + National public. The API has no "all states" shorthand.
 JURISDICTIONS = (
@@ -62,7 +72,7 @@ def _fetch(col, variable):
         "variable": variable,
         "jurisdiction": JURISDICTIONS,
         "stattype": "MN:MN",
-        "Year": ",".join(map(str, YEARS)),
+        "Year": ",".join(map(str, YEARS[subject])),
     }
     for attempt in range(MAX_RETRIES):
         try:
@@ -93,7 +103,7 @@ def _fetch_all(variable):
     return df.rename(columns={"jurisLabel": "state"})
 
 
-_log(f"Fetching NAEP totals ({len(SERIES)} series, {len(YEARS)} years)...")
+_log(f"Fetching NAEP totals ({len(SERIES)} series)...")
 totals = _fetch_all("TOTAL")
 naep_state = (
     totals.pivot_table(index=["state", "year"], columns="metric", values="value")
