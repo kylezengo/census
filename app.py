@@ -19,11 +19,13 @@ from config import (
     AGE_BRACKETS,
     CORR_METRIC_GROUPS,
     CPI,
+    CENSUS_2000_YEAR,
     CPI_COLS,
     DEFAULT_VAR,
     US_LABEL,
     FEMALE_COLOR,
     INCOME_COLOR,
+    INCOME_YEAR,
     MALE_COLOR,
     METRIC_LABELS,
     MF_COLOR,
@@ -85,19 +87,41 @@ def _read_acs(path, **kwargs):
 
 c_state = _read_acs(f"c_state_{ACS_YEAR}.csv")
 c_dma = _read_acs(f"c_dma_{ACS_YEAR}.csv")
-ts_state = _read_acs("c_timeseries_state.csv")
-ts_county = _read_acs("c_timeseries_county.csv", dtype={"GEOID": object})
+
+
+def _read_ts(name, sort, dtype=None):
+    """ACS 5-year series (2009+) with its Census 2000 point prepended.
+
+    Categoricals are applied after the concat, since concatenating two
+    categoricals with different categories falls back to object dtype. Sorted
+    because px.line draws points in row order.
+    """
+    dtype = dtype or {}
+    plain = {c: t for c, t in dtype.items() if t != "category"}
+    df = pd.concat(
+        [
+            _read_acs(f"c_census2000_{name}.csv", dtype=plain),
+            _read_acs(f"c_timeseries_{name}.csv", dtype=plain),
+        ],
+        ignore_index=True,
+    )
+    cats = {c: "category" for c, t in dtype.items() if t == "category"}
+    return df.astype(cats).sort_values(sort, ignore_index=True)
+
+
+ts_state = _read_ts("state", ["state", "year"])
+ts_county = _read_ts("county", ["NAME", "year"], dtype={"GEOID": object})
 # Categorical keys keep the long-format race frames small (463k county rows) and
 # make the per-callback `isin` filters ~4x faster than object dtype.
 _RACE_DTYPES = {"race": "category", "year": "int16"}
-ts_state_race = _read_acs(
-    "c_timeseries_state_race.csv", dtype={**_RACE_DTYPES, "state": "category"}
+ts_state_race = _read_ts(
+    "state_race", ["state", "race", "year"], dtype={**_RACE_DTYPES, "state": "category"}
 )
-ts_county_race = _read_acs(
-    "c_timeseries_county_race.csv", dtype={**_RACE_DTYPES, "NAME": "category"}
+ts_county_race = _read_ts(
+    "county_race", ["NAME", "race", "year"], dtype={**_RACE_DTYPES, "NAME": "category"}
 )
 # NAEP scores join the state frames as extra columns. Its series starts in 1998,
-# so the outer join adds pre-ACS rows that are empty for every ACS metric.
+# so the outer join adds rows that are empty for every census metric.
 _naep_state = _read_acs("c_naep_state.csv")
 ts_state = ts_state.merge(_naep_state, on=["state", "year"], how="outer").sort_values(
     ["state", "year"], ignore_index=True
@@ -120,11 +144,11 @@ ts_state_race = (
     .sort_values(["state", "race", "year"], ignore_index=True)
 )
 _AGE_DTYPES = {"age": "category", "year": "int16"}
-ts_state_age = _read_acs(
-    "c_timeseries_state_age.csv", dtype={**_AGE_DTYPES, "state": "category"}
+ts_state_age = _read_ts(
+    "state_age", ["state", "age", "year"], dtype={**_AGE_DTYPES, "state": "category"}
 )
-ts_county_age = _read_acs(
-    "c_timeseries_county_age.csv", dtype={**_AGE_DTYPES, "NAME": "category"}
+ts_county_age = _read_ts(
+    "county_age", ["NAME", "age", "year"], dtype={**_AGE_DTYPES, "NAME": "category"}
 )
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
@@ -299,9 +323,10 @@ def _apply_cpi(df, year_col="year"):
     df = df.copy()
     for col in CPI_COLS:
         if col in df.columns:
-            df[col] = df[col] * df[year_col].map(
-                lambda y: CPI[2024] / CPI.get(y, CPI[2024])
-            )
+            years = df[year_col]
+            if col == "Median Household Income":
+                years = years.replace(INCOME_YEAR)
+            df[col] = df[col] * years.map(lambda y: CPI[2024] / CPI.get(y, CPI[2024]))
     return df
 
 
@@ -434,6 +459,13 @@ def _keyed_baseline(geo_level, metric):
 def _us_baseline(metric):
     """National all-races value by year, for the 'United States' ratio baseline."""
     return ts_state[ts_state["state"] == US_LABEL].set_index("year")[metric].to_dict()
+
+
+def _source_label(year):
+    """Hover label for a trends point: Census 2000, else the pooled ACS window."""
+    if year == CENSUS_2000_YEAR:
+        return "Census 2000 (income for 1999)"
+    return f"ACS {_acs5_window(year)} (5-yr)"
 
 
 def _acs5_window(year):
@@ -927,7 +959,9 @@ app.layout = html.Div(
                                             "nominal dollars, so rising shares reflect "
                                             "inflation as well as real gains. Each point pools the "
                                             "prior 5 years — 2024 covers 2020–2024 — so "
-                                            "trends lag real turning points.",
+                                            "trends lag real turning points. 2000 is the "
+                                            "decennial census long form (income for 1999); "
+                                            "there is no data for 2001–08.",
                                             style={
                                                 "fontSize": "11px",
                                                 "color": "#888",
@@ -1051,7 +1085,9 @@ app.layout = html.Div(
                                             "nominal dollars, so rising shares reflect "
                                             "inflation as well as real gains. Each point pools the "
                                             "prior 5 years — 2024 covers 2020–2024 — so "
-                                            "trends lag real turning points.",
+                                            "trends lag real turning points. 2000 is the "
+                                            "decennial census long form (income for 1999); "
+                                            "there is no data for 2001–08.",
                                             style={
                                                 "fontSize": "11px",
                                                 "color": "#888",
@@ -2011,8 +2047,9 @@ def update_trends_chart(
         source = plot_df["year"].map(lambda y: f"NAEP {y}")
         xaxis = {"tickvals": sorted(plot_df["year"].unique()), "title": "Assessment year"}
     else:
-        source = plot_df["year"].map(lambda y: f"ACS {_acs5_window(y)} (5-yr)")
-        xaxis = {"dtick": 1, "title": "Year (end of 5-year ACS window)"}
+        source = plot_df["year"].map(_source_label)
+        # Every other year: the series now spans 2000-2024, too many labels for one each.
+        xaxis = {"dtick": 2, "title": "Year (ACS: end of 5-year window)"}
     plot_df = plot_df.assign(_window=source)
     fig = px.line(
         plot_df,

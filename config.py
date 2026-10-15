@@ -326,6 +326,8 @@ SUGGESTED_SCATTERS = [
 # CPI-U annual averages (BLS, all items) — used to express dollar metrics in 2022 dollars
 # Inflation & labels #########################################################
 CPI = {
+    1999: 166.6,
+    2000: 172.2,
     2009: 214.537,
     2010: 218.056,
     2011: 224.939,
@@ -346,6 +348,13 @@ CPI = {
 
 
 CPI_COLS = ["Median Household Income", "Median Home Value", "Median Gross Rent"]
+
+
+# The Trends series opens with a Census 2000 point (download_census2000.py). That
+# census asked about the prior year's income, so its income is in 1999 dollars
+# while value and rent are 2000 dollars; ACS figures are all in the survey year's.
+CENSUS_2000_YEAR = 2000
+INCOME_YEAR = {CENSUS_2000_YEAR: 1999}
 
 
 METRIC_LABELS = {

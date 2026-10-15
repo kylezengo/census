@@ -2,7 +2,7 @@
 
 Interactive Dash app for exploring ACS demographic data — choropleth maps,
 scatter plots, correlation matrices, and time-series trends (including
-race-segmented trends back to 2009), plus NAEP state test scores back to 2003.
+race-segmented trends from 2000 and 2009–2024), plus NAEP state test scores back to 1998.
 
 ## Setup
 
@@ -24,7 +24,8 @@ pass `--force` to re-download.
 | 2 | `download_shape_files.py` | `*_geom.shp` and friends |
 | 3 | `download.py` | `c_*_2024.csv` (cross-sectional ACS) |
 | 4 | `download_timeseries.py` | `c_timeseries_*.csv` (2009–2024, incl. race) |
-| 5 | `download_naep.py` | `c_naep_state*.csv` (NAEP scores, 2003–2024; no key needed) |
+| 5 | `download_naep.py` | `c_naep_state*.csv` (NAEP scores, 1998–2024; no key needed) |
+| 6 | `download_census2000.py` | `c_census2000_*.csv` (Census 2000 long form, prepended to the timeseries) |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -60,6 +61,9 @@ gsutil -m cp \
   c_timeseries_state_race.csv c_timeseries_county_race.csv \
   c_timeseries_state_age.csv c_timeseries_county_age.csv \
   c_naep_state.csv c_naep_state_race.csv \
+  c_census2000_state.csv c_census2000_county.csv \
+  c_census2000_state_race.csv c_census2000_county_race.csv \
+  c_census2000_state_age.csv c_census2000_county_age.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/
@@ -105,3 +109,9 @@ slow (~30s) first request after idle.
 
 ACS 5-year estimates pool the prior five years — a point labelled 2024 covers
 2020–2024 — so trends lag real turning points.
+
+The Trends series opens with a Census 2000 point from the decennial long form
+(SF3), the ACS's predecessor; there is no data for 2001–08. Its income and
+poverty refer to 1999, and the inflation adjustment uses 1999 prices for income.
+Householder-age medians for 2000 are interpolated from income bins (2000 only
+published 10-year brackets); checked to within ~0.5% typically.
