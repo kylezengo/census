@@ -401,10 +401,13 @@ def _age_profile_geos(level):
 def _age_profile_sex_options(metric):
     """Householder metrics have no sex split, so disable everything but Both."""
     householder = metric in AGE_PROFILE_HOUSEHOLDER_METRICS
-    return [
-        {"label": f"  {v}", "value": k, "disabled": householder and k != "Both"}
-        for k, v in AGE_PROFILE_SEXES.items()
-    ]
+    options = []
+    for k, v in AGE_PROFILE_SEXES.items():
+        disabled = householder and k != "Both"
+        # Browsers grey out a disabled radio but not its label text.
+        label = html.Span(f"  {v}", style={"color": "#bbb"} if disabled else {})
+        options.append({"label": label, "value": k, "disabled": disabled})
+    return options
 
 
 def _with_naep(metrics, geo_level):
