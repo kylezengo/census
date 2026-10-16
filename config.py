@@ -122,8 +122,9 @@ _MAX_TREND_SERIES = 8
 # Presets ####################################################################
 SUGGESTED_TRENDS = [
     {
-        # Same data as ratios: Black income sits ~0.68 of the national median
-        # in both 2009 and 2024 — 15 years of growth, no relative movement.
+        # Same data as ratios: Black income is 0.65 of the national median in
+        # 1979 and 0.68 in 2024 — 45 years, almost no relative movement (it
+        # peaked at 0.70 in 1999). Asian pulls away: 1.23 (1989) -> 1.44.
         "label": "Income Gap",
         "geo_level": "State",
         "geo": [US_LABEL],

@@ -89,9 +89,9 @@ c_state = _read_acs(f"c_state_{ACS_YEAR}.csv")
 c_dma = _read_acs(f"c_dma_{ACS_YEAR}.csv")
 
 
-def _read_ts(name, sort, dtype=None, nhgis=True):
+def _read_ts(name, sort, dtype=None):
     """ACS 5-year series (2009+) with the decennial censuses prepended: 2000 from
-    the long form, 1790-1990 from NHGIS where it has a time series (not age).
+    the long form, 1790-1990 from NHGIS.
 
     Categoricals are applied after the concat, since concatenating two
     categoricals with different categories falls back to object dtype. Sorted
@@ -99,9 +99,7 @@ def _read_ts(name, sort, dtype=None, nhgis=True):
     """
     dtype = dtype or {}
     plain = {c: t for c, t in dtype.items() if t != "category"}
-    sources = ["census2000", "timeseries"]
-    if nhgis:
-        sources.insert(0, "nhgis")
+    sources = ["nhgis", "census2000", "timeseries"]
     df = pd.concat(
         [_read_acs(f"c_{src}_{name}.csv", dtype=plain) for src in sources],
         ignore_index=True,
@@ -146,16 +144,10 @@ ts_state_race = (
 )
 _AGE_DTYPES = {"age": "category", "year": "int16"}
 ts_state_age = _read_ts(
-    "state_age",
-    ["state", "age", "year"],
-    dtype={**_AGE_DTYPES, "state": "category"},
-    nhgis=False,
+    "state_age", ["state", "age", "year"], dtype={**_AGE_DTYPES, "state": "category"}
 )
 ts_county_age = _read_ts(
-    "county_age",
-    ["NAME", "age", "year"],
-    dtype={**_AGE_DTYPES, "NAME": "category"},
-    nhgis=False,
+    "county_age", ["NAME", "age", "year"], dtype={**_AGE_DTYPES, "NAME": "category"}
 )
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
@@ -972,8 +964,8 @@ app.layout = html.Div(
                                             "prior 5 years — 2024 covers 2020–2024 — so "
                                             "trends lag real turning points. Before 2009, "
                                             "points are decennial censuses (2000 long form; "
-                                            "1790–1990 via NHGIS time series, so coverage "
-                                            "varies by metric); no data for 2001–08. "
+                                            "1790–1990 via NHGIS, so coverage varies by "
+                                            "metric); no data for 2001–08. "
                                             "Historical data: IPUMS NHGIS, University of "
                                             "Minnesota, www.nhgis.org.",
                                             style={
@@ -1101,8 +1093,8 @@ app.layout = html.Div(
                                             "prior 5 years — 2024 covers 2020–2024 — so "
                                             "trends lag real turning points. Before 2009, "
                                             "points are decennial censuses (2000 long form; "
-                                            "1790–1990 via NHGIS time series, so coverage "
-                                            "varies by metric); no data for 2001–08. "
+                                            "1790–1990 via NHGIS, so coverage varies by "
+                                            "metric); no data for 2001–08. "
                                             "Historical data: IPUMS NHGIS, University of "
                                             "Minnesota, www.nhgis.org.",
                                             style={

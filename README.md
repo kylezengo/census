@@ -72,6 +72,7 @@ gsutil -m cp \
   c_census2000_state_age.csv c_census2000_county_age.csv \
   c_nhgis_state.csv c_nhgis_county.csv \
   c_nhgis_state_race.csv c_nhgis_county_race.csv \
+  c_nhgis_state_age.csv c_nhgis_county_age.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/
@@ -133,7 +134,11 @@ published 10-year brackets); checked to within ~0.5% typically.
 Before 2000 the series uses NHGIS *time series* tables only — measures NHGIS has
 harmonized across censuses — so each metric starts when that exists: population
 1790, % male 1820, most others 1970, White non-Hispanic and median income 1980.
-Home value, rent, % Asian (NHGIS merges Asian with Pacific Islander) and the age
-segment stay 2000+. County boundaries are as drawn in each census, and territories
+Home value, rent and % Asian (NHGIS merges Asian with Pacific Islander) stay 2000+.
+Income by race and by householder age have no time series, so they come from the
+1980 and 1990 source tables: race medians are the Census Bureau's published ones
+(1980 lacks Asian and White non-Hispanic; its US row is interpolated from summed
+state bins, a method that reproduces every published 1980 median exactly), and
+1990 age medians are interpolated from 9 coarse bins (~1% off typically). County boundaries are as drawn in each census, and territories
 are separate series (e.g. "Dakota Territory"). The national row is the full US
 where NHGIS has it and the contiguous US otherwise (1880–1950 except 1900/1910).
