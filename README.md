@@ -2,11 +2,16 @@
 
 Interactive Dash app for exploring ACS demographic data — choropleth maps,
 scatter plots, correlation matrices, and time-series trends (including
-race-segmented trends from 2000 and 2009–2024), plus NAEP state test scores back to 1998.
+race-segmented trends back to 1790 where the census measured it), plus NAEP state
+test scores back to 1998.
 
 ## Setup
 
 Requires a free Census API key: https://api.census.gov/data/key_signup.html
+
+The historical (pre-2000) data also needs a free IPUMS API key: register for
+NHGIS at https://www.nhgis.org, then create a key at
+https://account.ipums.org/api_keys and add it to `.env` as `ipums_api_key`.
 
 ```bash
 pip install -r requirements.txt
@@ -26,6 +31,7 @@ pass `--force` to re-download.
 | 4 | `download_timeseries.py` | `c_timeseries_*.csv` (2009–2024, incl. race) |
 | 5 | `download_naep.py` | `c_naep_state*.csv` (NAEP scores, 1998–2024; no key needed) |
 | 6 | `download_census2000.py` | `c_census2000_*.csv` (Census 2000 long form, prepended to the timeseries) |
+| 7 | `download_nhgis.py` | `c_nhgis_*.csv` (decennial censuses 1790–1990 via NHGIS; needs `ipums_api_key`) |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -64,6 +70,8 @@ gsutil -m cp \
   c_census2000_state.csv c_census2000_county.csv \
   c_census2000_state_race.csv c_census2000_county_race.csv \
   c_census2000_state_age.csv c_census2000_county_age.csv \
+  c_nhgis_state.csv c_nhgis_county.csv \
+  c_nhgis_state_race.csv c_nhgis_county_race.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/
@@ -104,6 +112,12 @@ slow (~30s) first request after idle.
 - **ZIPCodetoZCTACrosswalk2021UDS.xlsx** — https://udsmapper.org/zip-code-to-zcta-crosswalk/
 - **zip_to_dma.csv** — https://gist.github.com/clarkenheim/023882f8d77741f4d5347f80d95bc259
 - **c_naep_state*.csv** — NAEP Data Service, https://www.nationsreportcard.gov/DataService/
+- **c_nhgis_*.csv** — IPUMS NHGIS time series tables. Cite as: Jonathan Schroeder,
+  David Van Riper, Steven Manson, Grace Cooper, Zachary Krause, Tracy Kugler, Tsu Zhu,
+  and Steven Ruggles. *IPUMS National Historical Geographic Information System:
+  Version 21.0* [dataset]. Minneapolis, MN: IPUMS. 2026.
+  http://doi.org/10.18128/D050.V21.0. NHGIS terms forbid redistributing the data, so
+  the CSVs stay out of git and the GCS bucket must stay private.
 
 ## Notes
 
@@ -115,3 +129,11 @@ The Trends series opens with a Census 2000 point from the decennial long form
 poverty refer to 1999, and the inflation adjustment uses 1999 prices for income.
 Householder-age medians for 2000 are interpolated from income bins (2000 only
 published 10-year brackets); checked to within ~0.5% typically.
+
+Before 2000 the series uses NHGIS *time series* tables only — measures NHGIS has
+harmonized across censuses — so each metric starts when that exists: population
+1790, % male 1820, most others 1970, White non-Hispanic and median income 1980.
+Home value, rent, % Asian (NHGIS merges Asian with Pacific Islander) and the age
+segment stay 2000+. County boundaries are as drawn in each census, and territories
+are separate series (e.g. "Dakota Territory"). The national row is the full US
+where NHGIS has it and the contiguous US otherwise (1880–1950 except 1900/1910).

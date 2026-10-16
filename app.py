@@ -89,8 +89,9 @@ c_state = _read_acs(f"c_state_{ACS_YEAR}.csv")
 c_dma = _read_acs(f"c_dma_{ACS_YEAR}.csv")
 
 
-def _read_ts(name, sort, dtype=None):
-    """ACS 5-year series (2009+) with its Census 2000 point prepended.
+def _read_ts(name, sort, dtype=None, nhgis=True):
+    """ACS 5-year series (2009+) with the decennial censuses prepended: 2000 from
+    the long form, 1790-1990 from NHGIS where it has a time series (not age).
 
     Categoricals are applied after the concat, since concatenating two
     categoricals with different categories falls back to object dtype. Sorted
@@ -98,11 +99,11 @@ def _read_ts(name, sort, dtype=None):
     """
     dtype = dtype or {}
     plain = {c: t for c, t in dtype.items() if t != "category"}
+    sources = ["census2000", "timeseries"]
+    if nhgis:
+        sources.insert(0, "nhgis")
     df = pd.concat(
-        [
-            _read_acs(f"c_census2000_{name}.csv", dtype=plain),
-            _read_acs(f"c_timeseries_{name}.csv", dtype=plain),
-        ],
+        [_read_acs(f"c_{src}_{name}.csv", dtype=plain) for src in sources],
         ignore_index=True,
     )
     cats = {c: "category" for c, t in dtype.items() if t == "category"}
@@ -145,10 +146,16 @@ ts_state_race = (
 )
 _AGE_DTYPES = {"age": "category", "year": "int16"}
 ts_state_age = _read_ts(
-    "state_age", ["state", "age", "year"], dtype={**_AGE_DTYPES, "state": "category"}
+    "state_age",
+    ["state", "age", "year"],
+    dtype={**_AGE_DTYPES, "state": "category"},
+    nhgis=False,
 )
 ts_county_age = _read_ts(
-    "county_age", ["NAME", "age", "year"], dtype={**_AGE_DTYPES, "NAME": "category"}
+    "county_age",
+    ["NAME", "age", "year"],
+    dtype={**_AGE_DTYPES, "NAME": "category"},
+    nhgis=False,
 )
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
@@ -283,7 +290,9 @@ SEGMENTS = {
 }
 
 
-_ts_state_defaults = ts_state.groupby("state")["Pop"].mean().nlargest(4).index.tolist()
+# Largest by the latest year — a mean over 1790-2024 would favour old-population states.
+_latest = ts_state[ts_state["year"] == ts_state["year"].max()]
+_ts_state_defaults = _latest.nlargest(4, "Pop")["state"].tolist()
 
 
 # Scatter geography config: name → (dataframe, label_col, metric_cols)
@@ -462,9 +471,11 @@ def _us_baseline(metric):
 
 
 def _source_label(year):
-    """Hover label for a trends point: Census 2000, else the pooled ACS window."""
-    if year == CENSUS_2000_YEAR:
-        return "Census 2000 (income for 1999)"
+    """Hover label for a trends point: a decennial census, else the pooled ACS window."""
+    if year in INCOME_YEAR:
+        return f"Census {year} (income for {INCOME_YEAR[year]})"
+    if year <= CENSUS_2000_YEAR:
+        return f"Census {year}"
     return f"ACS {_acs5_window(year)} (5-yr)"
 
 
@@ -959,9 +970,12 @@ app.layout = html.Div(
                                             "nominal dollars, so rising shares reflect "
                                             "inflation as well as real gains. Each point pools the "
                                             "prior 5 years — 2024 covers 2020–2024 — so "
-                                            "trends lag real turning points. 2000 is the "
-                                            "decennial census long form (income for 1999); "
-                                            "there is no data for 2001–08.",
+                                            "trends lag real turning points. Before 2009, "
+                                            "points are decennial censuses (2000 long form; "
+                                            "1790–1990 via NHGIS time series, so coverage "
+                                            "varies by metric); no data for 2001–08. "
+                                            "Historical data: IPUMS NHGIS, University of "
+                                            "Minnesota, www.nhgis.org.",
                                             style={
                                                 "fontSize": "11px",
                                                 "color": "#888",
@@ -1085,9 +1099,12 @@ app.layout = html.Div(
                                             "nominal dollars, so rising shares reflect "
                                             "inflation as well as real gains. Each point pools the "
                                             "prior 5 years — 2024 covers 2020–2024 — so "
-                                            "trends lag real turning points. 2000 is the "
-                                            "decennial census long form (income for 1999); "
-                                            "there is no data for 2001–08.",
+                                            "trends lag real turning points. Before 2009, "
+                                            "points are decennial censuses (2000 long form; "
+                                            "1790–1990 via NHGIS time series, so coverage "
+                                            "varies by metric); no data for 2001–08. "
+                                            "Historical data: IPUMS NHGIS, University of "
+                                            "Minnesota, www.nhgis.org.",
                                             style={
                                                 "fontSize": "11px",
                                                 "color": "#888",
@@ -1801,7 +1818,9 @@ def update_anim_scatter(
 
     extra = [m for m in [color_metric, size_metric] if m]
     cols = list(dict.fromkeys(["year", name_col, x_metric, y_metric] + extra))
-    plot_df = df[cols].dropna(subset=[x_metric, y_metric])
+    # px orders animation frames by first appearance, and geographies now start
+    # in different census years, so sort by year or frames come out of order.
+    plot_df = df[cols].dropna(subset=[x_metric, y_metric]).sort_values(["year", name_col])
 
     if inflate:
         plot_df = _apply_cpi(plot_df)
@@ -2048,8 +2067,12 @@ def update_trends_chart(
         xaxis = {"tickvals": sorted(plot_df["year"].unique()), "title": "Assessment year"}
     else:
         source = plot_df["year"].map(_source_label)
-        # Every other year: the series now spans 2000-2024, too many labels for one each.
-        xaxis = {"dtick": 2, "title": "Year (ACS: end of 5-year window)"}
+        # Every other year up to a 30-year span; past that (back to 1790) let
+        # plotly pick, or the labels pile up.
+        span = plot_df["year"].max() - plot_df["year"].min()
+        xaxis = {"title": "Year (ACS: end of 5-year window)"}
+        if span <= 30:
+            xaxis["dtick"] = 2
     plot_df = plot_df.assign(_window=source)
     fig = px.line(
         plot_df,

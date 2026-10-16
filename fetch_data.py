@@ -22,6 +22,11 @@ FILES = [
     "c_timeseries_county_race.csv",
     "c_timeseries_state_age.csv",
     "c_timeseries_county_age.csv",
+    # NHGIS decennial censuses 1790-1990 (prepended to the timeseries at load)
+    "c_nhgis_state.csv",
+    "c_nhgis_county.csv",
+    "c_nhgis_state_race.csv",
+    "c_nhgis_county_race.csv",
     # Census 2000 long form (prepended to the timeseries at load)
     "c_census2000_state.csv",
     "c_census2000_county.csv",

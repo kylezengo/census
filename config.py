@@ -147,8 +147,9 @@ SUGGESTED_TRENDS = [
         "view": "ratio",
     },
     {
-        # Homeownership is the gap that did NOT close: Black ownership slips
-        # from 0.687 to 0.676 of the national rate while every other group rises.
+        # Homeownership is the gap that did NOT close: Black ownership sits at
+        # 0.66-0.70 of the national rate from 1970 to 2024, while Hispanic
+        # (0.67 -> 0.78, from 1980) and White non-Hispanic (1.06 -> 1.12) rise.
         "label": "Ownership Gap",
         "geo_level": "State",
         "geo": [US_LABEL],
@@ -326,6 +327,8 @@ SUGGESTED_SCATTERS = [
 # CPI-U annual averages (BLS, all items) — used to express dollar metrics in 2022 dollars
 # Inflation & labels #########################################################
 CPI = {
+    1979: 72.6,
+    1989: 124.0,
     1999: 166.6,
     2000: 172.2,
     2009: 214.537,
@@ -350,11 +353,12 @@ CPI = {
 CPI_COLS = ["Median Household Income", "Median Home Value", "Median Gross Rent"]
 
 
-# The Trends series opens with a Census 2000 point (download_census2000.py). That
-# census asked about the prior year's income, so its income is in 1999 dollars
-# while value and rent are 2000 dollars; ACS figures are all in the survey year's.
+# Before 2009 the Trends series is decennial censuses: 2000 from the long form
+# (download_census2000.py), 1790-1990 from NHGIS (download_nhgis.py). Each census
+# asked about the prior year's income, so census income is in that year's dollars;
+# ACS figures are all in the survey year's.
 CENSUS_2000_YEAR = 2000
-INCOME_YEAR = {CENSUS_2000_YEAR: 1999}
+INCOME_YEAR = {1980: 1979, 1990: 1989, CENSUS_2000_YEAR: 1999}
 
 
 METRIC_LABELS = {
