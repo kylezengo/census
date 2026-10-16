@@ -148,27 +148,27 @@ SUGGESTED_TRENDS = [
         "view": "ratio",
     },
     {
-        # Homeownership is the gap that did NOT close: Black ownership sits at
-        # 0.66-0.70 of the national rate from 1970 to 2024, while Hispanic
-        # (0.67 -> 0.78, from 1980) and White non-Hispanic (1.06 -> 1.12) rise.
-        "label": "Ownership Gap",
+        # The only preset on the 1790+ history: New York passes Pennsylvania
+        # (1810), then is passed by California (1970), Texas (2000) and Florida
+        # (2016). Census years, so each crossing happened in the decade before.
+        # Replaced "Ownership Gap", which told Income Gap's story (Black stuck,
+        # Hispanic and Asian rising) on another metric.
+        "label": "Big State Shift",
         "geo_level": "State",
-        "geo": [US_LABEL],
-        "metric": "pct_owner_occupied",
+        "geo": ["New York", "Pennsylvania", "California", "Texas", "Florida"],
+        "metric": "Pop",
         "inflate": [],
-        "segment": "race",
-        "race": RACE_DEFAULTS,
-        "view": "ratio",
     },
     {
-        # Share of households above $100k, by householder age: under-25 goes
-        # 2.9% -> 13.9%, 45-64 goes 27.5% -> 49.0%. Nominal dollars, so part
-        # of the rise is inflation.
+        # Real median income by householder age, 1989 -> 2024 (2024 $): 65+
+        # rises 34% ($43.6k -> $58.4k) while every younger bracket gains 1-5%.
+        # Was the $100k+ share, but over 34 years its nominal threshold made the
+        # rise mostly inflation ($100k in 1989 is ~$255k today).
         "label": "Income by Age",
         "geo_level": "State",
         "geo": [US_LABEL],
-        "metric": "pct_income_100k_plus",
-        "inflate": [],
+        "metric": "Median Household Income",
+        "inflate": ["inflate"],
         "segment": "age",
         "race": AGE_BRACKETS,
     },
