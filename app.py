@@ -17,6 +17,9 @@ from config import (
     _PCT_METRICS,
     ACS_YEAR,
     AGE_BRACKETS,
+    AGE_PROFILE_HOUSEHOLDER_METRICS,
+    AGE_PROFILE_METRICS,
+    AGE_PROFILE_SEXES,
     CORR_METRIC_GROUPS,
     CPI,
     CENSUS_2000_YEAR,
@@ -34,6 +37,7 @@ from config import (
     RACE_DEFAULTS,
     RACE_GROUPS,
     RATIO_BASELINES,
+    SUGGESTED_AGE_PROFILES,
     SUGGESTED_ANIM_SCATTERS,
     SUGGESTED_SCATTERS,
     SUGGESTED_TRENDS,
@@ -149,6 +153,12 @@ ts_state_age = _read_ts(
 ts_county_age = _read_ts(
     "county_age", ["NAME", "age", "year"], dtype={**_AGE_DTYPES, "NAME": "category"}
 )
+# Age Profile: long format (level x NAME x metric x sex x age -> value).
+age_profile = _read_acs(
+    f"c_age_profile_{ACS_YEAR}.csv",
+    dtype={c: "category" for c in ["level", "NAME", "metric", "sex", "age"]},
+)
+AGE_PROFILE_LEVELS = ["State", "County", "Congressional District"]
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
 if DEV_MODE:
@@ -378,6 +388,25 @@ def _make_options(cols):
     return [{"label": _metric_label(c), "value": c} for c in cols]
 
 
+def _age_profile_geos(level):
+    names = age_profile.loc[age_profile["level"] == level, "NAME"].unique()
+    names = sorted(map(str, names))
+    # Keep the national row first at State level.
+    if US_LABEL in names:
+        names.remove(US_LABEL)
+        names.insert(0, US_LABEL)
+    return names
+
+
+def _age_profile_sex_options(metric):
+    """Householder metrics have no sex split, so disable everything but Both."""
+    householder = metric in AGE_PROFILE_HOUSEHOLDER_METRICS
+    return [
+        {"label": f"  {v}", "value": k, "disabled": householder and k != "Both"}
+        for k, v in AGE_PROFILE_SEXES.items()
+    ]
+
+
 def _with_naep(metrics, geo_level):
     """NAEP only reports states, so its scores are offered at State level alone."""
     return metrics + NAEP_METRICS if geo_level == "State" else metrics
@@ -553,6 +582,7 @@ app.layout = html.Div(
         dcc.Store(id="scatter-active-preset", data=None),
         dcc.Store(id="anim-active-preset", data=None),
         dcc.Store(id="corr-active-group", data=None),
+        dcc.Store(id="ap-active-preset", data=None),
         dcc.Tabs(
             [
                 dcc.Tab(
@@ -1328,6 +1358,98 @@ app.layout = html.Div(
                                             id="corr-matrix", style={"height": "700px"}
                                         )
                                     ],
+                                    style=_chart_style,
+                                ),
+                            ],
+                            style=_flex_row,
+                        ),
+                    ],
+                ),
+                dcc.Tab(
+                    label="Age Profile",
+                    style=_tab_style,
+                    selected_style=_tab_style,
+                    children=[
+                        html.Div(
+                            [
+                                html.Span(
+                                    "Suggested: ",
+                                    style={
+                                        "fontFamily": "Arial",
+                                        "fontWeight": "bold",
+                                        "marginRight": "8px",
+                                    },
+                                ),
+                                *[
+                                    html.Button(
+                                        s["label"],
+                                        id=f"ap-preset-{i}",
+                                        n_clicks=0,
+                                        style=_btn_style,
+                                    )
+                                    for i, s in enumerate(SUGGESTED_AGE_PROFILES)
+                                ],
+                            ],
+                            style={
+                                "padding": "12px 20px",
+                                "borderBottom": "1px solid #eee",
+                            },
+                        ),
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Label("Geography Level", style=_bold),
+                                        dcc.Dropdown(
+                                            id="ap-geo-level",
+                                            options=AGE_PROFILE_LEVELS,
+                                            value="State",
+                                            clearable=False,
+                                        ),
+                                        html.Label("Select Geography", style=_bold_mt),
+                                        dcc.Dropdown(
+                                            id="ap-geo",
+                                            options=_age_profile_geos("State"),
+                                            value=[US_LABEL],
+                                            multi=True,
+                                            placeholder="Select geographies to compare...",
+                                        ),
+                                        html.Label("Metric", style=_bold_mt),
+                                        dcc.Dropdown(
+                                            id="ap-metric",
+                                            options=_make_options(AGE_PROFILE_METRICS),
+                                            value="pct_poverty",
+                                            clearable=False,
+                                        ),
+                                        html.Label("Sex", style=_bold_mt),
+                                        dcc.RadioItems(
+                                            id="ap-sex",
+                                            options=_age_profile_sex_options("pct_poverty"),
+                                            value="Both",
+                                            labelStyle={
+                                                "display": "block",
+                                                "marginTop": "4px",
+                                            },
+                                        ),
+                                        html.P(
+                                            "ACS 5-Year Estimates, 2020–2024. Age groups "
+                                            "follow each Census table, so they differ by "
+                                            "metric. Homeownership and income are by age "
+                                            "of householder (who owns or rents the home), "
+                                            "so they have no sex split. A snapshot across "
+                                            "ages at one time, not people followed as they "
+                                            "age.",
+                                            style={
+                                                "fontSize": "11px",
+                                                "color": "#888",
+                                                "marginTop": "16px",
+                                            },
+                                        ),
+                                    ],
+                                    style=_sidebar_style,
+                                ),
+                                html.Div(
+                                    [dcc.Graph(id="ap-chart", style={"height": "700px"})],
                                     style=_chart_style,
                                 ),
                             ],
@@ -2207,6 +2329,95 @@ def _register_preset_highlight(btn_prefix, store_id, n):
         return [_btn_active_style if i == active else _btn_style for i in range(n)]
 
 
+@app.callback(Output("ap-geo", "options"), Input("ap-geo-level", "value"))
+def update_ap_geo_options(level):
+    return _age_profile_geos(level)
+
+
+@app.callback(
+    Output("ap-sex", "options"),
+    Output("ap-sex", "value", allow_duplicate=True),
+    Input("ap-metric", "value"),
+    State("ap-sex", "value"),
+    prevent_initial_call=True,
+)
+def toggle_ap_sex(metric, sex):
+    if metric in AGE_PROFILE_HOUSEHOLDER_METRICS:
+        sex = "Both"
+    return _age_profile_sex_options(metric), sex
+
+
+@app.callback(
+    Output("ap-geo-level", "value"),
+    Output("ap-geo", "value"),
+    Output("ap-metric", "value"),
+    Output("ap-sex", "value"),
+    [Input(f"ap-preset-{i}", "n_clicks") for i in range(len(SUGGESTED_AGE_PROFILES))],
+    prevent_initial_call=True,
+)
+def load_ap_preset(*_):
+    s = SUGGESTED_AGE_PROFILES[_triggered_idx("ap-preset")]
+    return s["geo_level"], s["geo"], s["metric"], s["sex"]
+
+
+@app.callback(
+    Output("ap-chart", "figure"),
+    Input("ap-geo-level", "value"),
+    Input("ap-geo", "value"),
+    Input("ap-metric", "value"),
+    Input("ap-sex", "value"),
+)
+def update_ap_chart(level, geo_names, metric, sex):
+    if not geo_names or not metric:
+        return px.line()
+    # The sex picker can lag a metric change by one callback; householder
+    # metrics only exist for Both.
+    if metric in AGE_PROFILE_HOUSEHOLDER_METRICS:
+        sex = "Both"
+    sexes = ["Male", "Female"] if sex == "compare" else [sex]
+    df = age_profile[
+        (age_profile["level"] == level)
+        & age_profile["NAME"].isin(geo_names)
+        & (age_profile["metric"] == metric)
+        & age_profile["sex"].isin(sexes)
+    ]
+    if df.empty:
+        return px.line()
+    names, sex_txt = df["NAME"].astype(str), df["sex"].astype(str)
+    if sex == "compare":
+        series = names + " — " + sex_txt if len(geo_names) > 1 else sex_txt
+    else:
+        series = names
+    df = df.assign(_series=series, age=df["age"].astype(str))
+    ages = df.sort_values("age_order")["age"].unique().tolist()
+    # Legend in a stable order; lines drawn youngest to oldest.
+    df = df.sort_values(["_series", "age_order"])
+    fmt = _axis_fmt(metric)
+    fig = px.line(
+        df,
+        x="age",
+        y="value",
+        color="_series",
+        markers=True,
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        category_orders={"age": ages},
+    )
+    fig.update_traces(
+        hovertemplate=(
+            f"%{{fullData.name}}<br>Age %{{x}}<br>"
+            f"%{{y:{_hover_fmt(metric)}}}<extra></extra>"
+        )
+    )
+    is_householder = metric in AGE_PROFILE_HOUSEHOLDER_METRICS
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 20, "b": 40},
+        xaxis={"title": "Age of householder" if is_householder else "Age", "type": "category"},
+        yaxis=fmt,
+        legend_title="Sex" if sex == "compare" and len(geo_names) == 1 else level,
+    )
+    return fig
+
+
 _register_preset_highlight("trends-preset", "trends-active-preset", len(SUGGESTED_TRENDS))
 _register_preset_highlight(
     "scatter-preset", "scatter-active-preset", len(SUGGESTED_SCATTERS)
@@ -2215,6 +2426,7 @@ _register_preset_highlight(
     "anim-preset", "anim-active-preset", len(SUGGESTED_ANIM_SCATTERS)
 )
 _register_preset_highlight("corr-group", "corr-active-group", len(CORR_METRIC_GROUPS))
+_register_preset_highlight("ap-preset", "ap-active-preset", len(SUGGESTED_AGE_PROFILES))
 
 
 if __name__ == "__main__":

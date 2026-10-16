@@ -325,6 +325,60 @@ SUGGESTED_SCATTERS = [
 ]
 
 
+# Age Profile tab ############################################################
+# Metrics from download_age_profile.py, ACS 2020-24, with age on the x-axis.
+AGE_PROFILE_METRICS = [
+    "pct_poverty",
+    "pct_in_labor_force",
+    "pct_unemployed",
+    "pct_bachelors_plus",
+    "pct_owner_occupied",
+    "Median Household Income",
+    "pct_of_population",
+    "pct_male",
+]
+
+# Measured per householder (owner/renter, household income), so no sex split.
+AGE_PROFILE_HOUSEHOLDER_METRICS = {"pct_owner_occupied", "Median Household Income"}
+
+AGE_PROFILE_SEXES = {
+    "Both": "Both sexes",
+    "Male": "Male",
+    "Female": "Female",
+    "compare": "Male vs female",
+}
+
+SUGGESTED_AGE_PROFILES = [
+    {
+        # Identical for children, then women run ~5 points higher at 18-34 and
+        # again at 75+ (13.9% vs 9.2%).
+        "label": "Poverty Gender Gap",
+        "geo_level": "State",
+        "geo": [US_LABEL],
+        "metric": "pct_poverty",
+        "sex": "compare",
+    },
+    {
+        # Householders 25-34: 55% own in West Virginia and Iowa, 28% in
+        # California, 30% in New York.
+        "label": "Starter Homes",
+        "geo_level": "State",
+        "geo": ["West Virginia", "Iowa", US_LABEL, "New York", "California"],
+        "metric": "pct_owner_occupied",
+        "sex": "Both",
+    },
+    {
+        # Ages 65-69 in the labor force: 43% in Massachusetts and New Jersey,
+        # 24% in West Virginia.
+        "label": "Working Past 65",
+        "geo_level": "State",
+        "geo": ["Massachusetts", "New Jersey", US_LABEL, "Mississippi", "West Virginia"],
+        "metric": "pct_in_labor_force",
+        "sex": "Both",
+    },
+]
+
+
 # CPI-U annual averages (BLS, all items) — used to express dollar metrics in 2022 dollars
 # Inflation & labels #########################################################
 CPI = {
@@ -381,6 +435,8 @@ METRIC_LABELS = {
     "pct_bachelors_plus": "% Bachelor's Degree or Higher",
     "pct_owner_occupied": "% Owner-Occupied Housing",
     "pct_renter_occupied": "% Renter-Occupied Housing",
+    "pct_of_population": "% of Population",
+    "pct_in_labor_force": "% in Labor Force",
     "Household Income 200+_ratio": "% Households Income $200k+",
     "price_to_rent_ratio": "Price-to-Rent Ratio",
     "naep_math_g4": "NAEP Math, Grade 4 (avg score)",

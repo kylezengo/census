@@ -15,6 +15,7 @@ FILES = [
     f"c_zcta_dma_{ACS_YEAR}.csv",
     f"c_congressional_district_{ACS_YEAR}.csv",
     f"state_name_{ACS_YEAR}.csv",
+    f"c_age_profile_{ACS_YEAR}.csv",
     # Timeseries (all years, no suffix)
     "c_timeseries_state.csv",
     "c_timeseries_county.csv",

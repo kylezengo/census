@@ -1,7 +1,7 @@
 # Census Data Explorer
 
 Interactive Dash app for exploring ACS demographic data — choropleth maps,
-scatter plots, correlation matrices, and time-series trends (including
+scatter plots, correlation matrices, age profiles, and time-series trends (including
 race-segmented trends back to 1790 where the census measured it), plus NAEP state
 test scores back to 1998.
 
@@ -32,6 +32,7 @@ pass `--force` to re-download.
 | 5 | `download_naep.py` | `c_naep_state*.csv` (NAEP scores, 1998–2024; no key needed) |
 | 6 | `download_census2000.py` | `c_census2000_*.csv` (Census 2000 long form, prepended to the timeseries) |
 | 7 | `download_nhgis.py` | `c_nhgis_*.csv` (decennial censuses 1790–1990 via NHGIS; needs `ipums_api_key`) |
+| 8 | `download_age_profile.py` | `c_age_profile_2024.csv` (metrics by age, for the Age Profile tab) |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -63,6 +64,7 @@ and block-group files are `DEV_MODE` only.
 gsutil -m cp \
   c_state_2024.csv c_dma_2024.csv c_county_state_2024.csv \
   c_zcta_dma_2024.csv c_congressional_district_2024.csv state_name_2024.csv \
+  c_age_profile_2024.csv \
   c_timeseries_state.csv c_timeseries_county.csv \
   c_timeseries_state_race.csv c_timeseries_county_race.csv \
   c_timeseries_state_age.csv c_timeseries_county_age.csv \
