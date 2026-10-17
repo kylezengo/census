@@ -570,6 +570,14 @@ def _normalize_checkbox(component_id):
 # App layout ###################################################################################
 app = Dash(__name__)
 server = app.server  # for gunicorn
+# Dash links assets/favicon.ico on its own; add the SVG after it so browsers
+# that support SVG icons get the one that follows light/dark mode.
+app.index_string = app.index_string.replace(
+    "{%favicon%}",
+    '{%favicon%}\n        <link rel="icon" type="image/svg+xml" href="'
+    + app.get_asset_url("favicon.svg")
+    + '">',
+)
 
 _tab_style = {"fontFamily": "Arial"}
 _sidebar_style = {"fontFamily": "Arial", "width": "300px", "padding": "20px", "flexShrink": 0}

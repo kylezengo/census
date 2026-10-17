@@ -12,6 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py config.py fetch_data.py dma_polygon_map.csv dma_polygons.geojson zip_to_dma.csv ./
+COPY assets/ ./assets/
 
 EXPOSE 8080
 
