@@ -568,7 +568,7 @@ def _normalize_checkbox(component_id):
 
 
 # App layout ###################################################################################
-app = Dash(__name__)
+app = Dash(__name__, title="Census Data Explorer")
 server = app.server  # for gunicorn
 # Dash links assets/favicon.ico on its own; add the SVG after it so browsers
 # that support SVG icons get the one that follows light/dark mode.
