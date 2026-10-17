@@ -191,11 +191,16 @@ SUGGESTED_TRENDS = [
 
 SUGGESTED_ANIM_SCATTERS = [
     {
-        "label": "Poverty vs Income",
+        # States converge, 1970 -> 2024: Mississippi's poverty rate falls from
+        # 2.6x the national rate to 1.5x, and the state-to-state spread (SD,
+        # excluding PR) from 6.1 to 2.6 points, mostly in the 1970s. Puerto
+        # Rico (40%+) enters in 2000. Replaced "Poverty vs Income", two
+        # measures of nearly the same thing.
+        "label": "South Catches Up",
         "geo_level": "State",
-        "x": "pct_poverty",
-        "y": "Median Household Income",
-        "color": "pct_black",
+        "x": "pct_black",
+        "y": "pct_poverty",
+        "color": "pct_bachelors_plus",
         "size": "Pop",
     },
     {

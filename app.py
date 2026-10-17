@@ -1946,6 +1946,8 @@ def update_anim_scatter(
     # px orders animation frames by first appearance, and geographies now start
     # in different census years, so sort by year or frames come out of order.
     plot_df = df[cols].dropna(subset=[x_metric, y_metric]).sort_values(["year", name_col])
+    # The national row isn't a state, and sized by population it hides the states.
+    plot_df = plot_df[plot_df[name_col] != US_LABEL]
 
     if inflate:
         plot_df = _apply_cpi(plot_df)
@@ -1968,6 +1970,10 @@ def update_anim_scatter(
         animation_group=name_col,
         range_x=[plot_df[x_metric].min() - x_pad, plot_df[x_metric].max() + x_pad],
         range_y=[plot_df[y_metric].min() - y_pad, plot_df[y_metric].max() + y_pad],
+        # One color range for all years; px otherwise rescales it every frame.
+        range_color=(
+            [plot_df[color_metric].min(), plot_df[color_metric].max()] if color_metric else None
+        ),
         color_continuous_scale=(
             _trunc_colorscale(_get_color(color_metric))
             if color_metric
