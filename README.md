@@ -118,6 +118,11 @@ slow (~30s) first request after idle.
 - **ZIPCodetoZCTACrosswalk2021UDS.xlsx** — https://udsmapper.org/zip-code-to-zcta-crosswalk/
 - **zip_to_dma.csv** — https://gist.github.com/clarkenheim/023882f8d77741f4d5347f80d95bc259
 - **c_naep_state*.csv** — NAEP Data Service, https://www.nationsreportcard.gov/DataService/
+- **c_housing_metro.csv** (regulation index) — Wharton Residential Land Use Regulatory
+  Index 2018, https://real-estate.wharton.upenn.edu/profile/gyourko/. Cite as: Joseph
+  Gyourko, Jonathan Hartley, and Jacob Krimmel. "The Local Residential Land Use
+  Regulatory Environment Across U.S. Housing Markets: Evidence from a New Wharton
+  Index." NBER Working Paper 26573, 2019.
 - **c_nhgis_*.csv** — IPUMS NHGIS time series tables. Cite as: Jonathan Schroeder,
   David Van Riper, Steven Manson, Grace Cooper, Zachary Krause, Tracy Kugler, Tsu Zhu,
   and Steven Ruggles. *IPUMS National Historical Geographic Information System:
