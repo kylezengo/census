@@ -13,3 +13,5 @@
 *.shx
 __pycache__
 .env
+# Exploratory analysis (not shipped)
+analysis/

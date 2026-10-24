@@ -384,6 +384,69 @@ SUGGESTED_AGE_PROFILES = [
 ]
 
 
+# Housing tab ################################################################
+# Shortage indicators from download_housing.py. State/US series 2009-2024; the
+# metro view plots 2020-24 values against the Wharton regulation index.
+HOUSING_METRICS = [
+    "pct_rental_vacancy",
+    "pct_vacant",
+    "units_per_household",
+    "pct_headship_25_34",
+    "pct_owner_25_34",
+    "pct_rent_burdened",
+    "pct_rent_severely_burdened",
+    "price_to_income",
+]
+
+HOUSING_VIEWS = {
+    "trends": "Trends by state",
+    "metro": "Metros by land-use regulation",
+}
+
+SUGGESTED_HOUSING = [
+    {
+        # Rental vacancy, ACS 2005-09 -> 2020-24: US 7.8% -> 5.5%. The Rust Belt
+        # went from slack to tight: Ohio 9.8% -> 4.4%, Michigan 9.6% -> 5.1%.
+        "label": "Rentals Tightening",
+        "view": "trends",
+        "metric": "pct_rental_vacancy",
+        "geo": [US_LABEL, "Ohio", "Michigan", "Florida", "California"],
+    },
+    {
+        # Median home value / median household income. Idaho 3.6 -> 5.4,
+        # Montana 3.8 -> 5.2, Utah 3.7 -> 5.1; California fell 7.9 -> 7.4
+        # (the 2005-09 window includes the bubble peak).
+        "label": "Mountain West Prices",
+        "view": "trends",
+        "metric": "price_to_income",
+        "geo": [US_LABEL, "Idaho", "Montana", "Utah", "California"],
+    },
+    {
+        # Owner householders aged 25-34 per person aged 25-34: US 20.4% -> 17.7%
+        # (low of 15.6% in 2016-19). California 12.4% -> 9.7%.
+        "label": "Young Homeowners",
+        "view": "trends",
+        "metric": "pct_owner_25_34",
+        "geo": [US_LABEL, "Florida", "Idaho", "California"],
+    },
+    {
+        # 99 metros with >= 5 surveyed jurisdictions: r = +0.62, pop-weighted
+        # slope +1.8 years of income per index point holding income equal (t = 4.2).
+        "label": "Regulation vs Prices",
+        "view": "metro",
+        "metric": "price_to_income",
+        "geo": [],
+    },
+    {
+        # r = -0.61; -6.5 points per index point holding income equal (t = -6.8).
+        "label": "Regulation vs Young Owners",
+        "view": "metro",
+        "metric": "pct_owner_25_34",
+        "geo": [],
+    },
+]
+
+
 # CPI-U annual averages (BLS, all items) — used to express dollar metrics in 2022 dollars
 # Inflation & labels #########################################################
 CPI = {
@@ -448,7 +511,19 @@ METRIC_LABELS = {
     "naep_math_g8": "NAEP Math, Grade 8 (avg score)",
     "naep_read_g4": "NAEP Reading, Grade 4 (avg score)",
     "naep_read_g8": "NAEP Reading, Grade 8 (avg score)",
+    "pct_rental_vacancy": "% Rental Vacancy",
+    "pct_vacant": "% Housing Units Vacant",
+    "units_per_household": "Housing Units per Household",
+    "pct_headship_25_34": "% Ages 25-34 Heading a Household",
+    "pct_owner_25_34": "% Ages 25-34 Owning a Home",
+    "pct_rent_burdened": "% Renters Paying 30%+ of Income",
+    "pct_rent_severely_burdened": "% Renters Paying 50%+ of Income",
+    "price_to_income": "Price-to-Income Ratio",
+    "wrluri": "Land-Use Regulation Index (Wharton 2018)",
 }
 
 
 _PCT_METRICS = {"Household Income 200+_ratio"}
+
+# Small ratios whose default ",.0f" would round away the signal.
+_DECIMAL_FMT = {"price_to_income": ".1f", "units_per_household": ".3f", "wrluri": ".2f"}

@@ -3,7 +3,8 @@
 Interactive Dash app for exploring ACS demographic data — choropleth maps,
 scatter plots, correlation matrices, age profiles, and time-series trends (including
 race-segmented trends back to 1790 where the census measured it), plus NAEP state
-test scores back to 1998.
+test scores back to 1998, and housing-shortage indicators set against metro
+land-use regulation.
 
 ## Setup
 
@@ -33,6 +34,7 @@ pass `--force` to re-download.
 | 6 | `download_census2000.py` | `c_census2000_*.csv` (Census 2000 long form, prepended to the timeseries) |
 | 7 | `download_nhgis.py` | `c_nhgis_*.csv` (decennial censuses 1790–1990 via NHGIS; needs `ipums_api_key`) |
 | 8 | `download_age_profile.py` | `c_age_profile_2024.csv` (metrics by age, for the Age Profile tab) |
+| 9 | `download_housing.py` | `c_housing_state.csv`, `c_housing_metro.csv` (housing-shortage indicators and the Wharton land-use regulation index, for the Housing tab; needs `openpyxl`) |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -75,6 +77,7 @@ gsutil -m cp \
   c_nhgis_state.csv c_nhgis_county.csv \
   c_nhgis_state_race.csv c_nhgis_county_race.csv \
   c_nhgis_state_age.csv c_nhgis_county_age.csv \
+  c_housing_state.csv c_housing_metro.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/

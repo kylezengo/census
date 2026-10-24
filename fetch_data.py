@@ -40,6 +40,9 @@ FILES = [
     # NAEP state scores (merged into the state timeseries at load)
     "c_naep_state.csv",
     "c_naep_state_race.csv",
+    # Housing tab: state trends and metros with the Wharton regulation index
+    "c_housing_state.csv",
+    "c_housing_metro.csv",
     # Static mapping
     "zcta_to_dma.csv",
     # Shapefiles

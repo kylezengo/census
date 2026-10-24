@@ -13,6 +13,7 @@ from dash import Dash, html, dcc, Input, Output, State, callback_context
 
 # Static config: metric lists, presets, colors, CPI table, labels.
 from config import (
+    _DECIMAL_FMT,
     _MAX_TREND_SERIES,
     _PCT_METRICS,
     ACS_YEAR,
@@ -27,6 +28,8 @@ from config import (
     DEFAULT_VAR,
     US_LABEL,
     FEMALE_COLOR,
+    HOUSING_METRICS,
+    HOUSING_VIEWS,
     INCOME_COLOR,
     INCOME_YEAR,
     MALE_COLOR,
@@ -39,6 +42,7 @@ from config import (
     RATIO_BASELINES,
     SUGGESTED_AGE_PROFILES,
     SUGGESTED_ANIM_SCATTERS,
+    SUGGESTED_HOUSING,
     SUGGESTED_SCATTERS,
     SUGGESTED_TRENDS,
     TIMESERIES_METRICS,
@@ -159,6 +163,12 @@ age_profile = _read_acs(
     dtype={c: "category" for c in ["level", "NAME", "metric", "sex", "age"]},
 )
 AGE_PROFILE_LEVELS = ["State", "County", "Congressional District"]
+# Housing: US + states by year, and metros (2020-24) with the regulation index.
+housing_state = _read_acs("c_housing_state.csv", dtype={"state": "category", "year": "int16"})
+housing_metro = _read_acs("c_housing_metro.csv", dtype={"cbsa": object})
+HOUSING_STATES = [US_LABEL] + sorted(
+    s for s in housing_state["state"].astype(str).unique() if s != US_LABEL
+)
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
 if DEV_MODE:
@@ -444,6 +454,8 @@ def _axis_fmt(metric):
         return {**label, "tickprefix": "$", "tickformat": ",.0f"}
     if metric.startswith("pct_") or metric in _PCT_METRICS:
         return {**label, "tickformat": ".0%"}
+    if metric in _DECIMAL_FMT:
+        return {**label, "tickformat": _DECIMAL_FMT[metric]}
     return label
 
 
@@ -513,7 +525,7 @@ def _hover_fmt(metric):
         return "$,.0f"
     if metric.startswith("pct_") or metric in _PCT_METRICS:
         return ".1%"
-    return ",.0f"
+    return _DECIMAL_FMT.get(metric, ",.0f")
 
 
 def _hovertemplate(x_metric, y_metric, color_metric=None):
@@ -594,6 +606,7 @@ app.layout = html.Div(
         dcc.Store(id="anim-active-preset", data=None),
         dcc.Store(id="corr-active-group", data=None),
         dcc.Store(id="ap-active-preset", data=None),
+        dcc.Store(id="housing-active-preset", data=None),
         dcc.Tabs(
             [
                 dcc.Tab(
@@ -1461,6 +1474,93 @@ app.layout = html.Div(
                                 ),
                                 html.Div(
                                     [dcc.Graph(id="ap-chart", style={"height": "700px"})],
+                                    style=_chart_style,
+                                ),
+                            ],
+                            style=_flex_row,
+                        ),
+                    ],
+                ),
+                dcc.Tab(
+                    label="Housing",
+                    style=_tab_style,
+                    selected_style=_tab_style,
+                    children=[
+                        html.Div(
+                            [
+                                html.Span(
+                                    "Suggested: ",
+                                    style={
+                                        "fontFamily": "Arial",
+                                        "fontWeight": "bold",
+                                        "marginRight": "8px",
+                                    },
+                                ),
+                                *[
+                                    html.Button(
+                                        s["label"],
+                                        id=f"housing-preset-{i}",
+                                        n_clicks=0,
+                                        style=_btn_style,
+                                    )
+                                    for i, s in enumerate(SUGGESTED_HOUSING)
+                                ],
+                            ],
+                            style={
+                                "padding": "12px 20px",
+                                "borderBottom": "1px solid #eee",
+                            },
+                        ),
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Label("View", style=_bold),
+                                        dcc.RadioItems(
+                                            id="housing-view",
+                                            options=[
+                                                {"label": f"  {v}", "value": k}
+                                                for k, v in HOUSING_VIEWS.items()
+                                            ],
+                                            value="trends",
+                                            labelStyle={
+                                                "display": "block",
+                                                "marginTop": "4px",
+                                            },
+                                        ),
+                                        html.Label("Metric", style=_bold_mt),
+                                        dcc.Dropdown(
+                                            id="housing-metric",
+                                            options=_make_options(HOUSING_METRICS),
+                                            value="pct_rental_vacancy",
+                                            clearable=False,
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label("Select Geography", style=_bold_mt),
+                                                dcc.Dropdown(
+                                                    id="housing-geo",
+                                                    options=HOUSING_STATES,
+                                                    value=[US_LABEL],
+                                                    multi=True,
+                                                    placeholder="Select states to compare...",
+                                                ),
+                                            ],
+                                            id="housing-geo-controls",
+                                        ),
+                                        html.Div(
+                                            id="housing-note",
+                                            style={
+                                                "fontSize": "11px",
+                                                "color": "#888",
+                                                "marginTop": "16px",
+                                            },
+                                        ),
+                                    ],
+                                    style=_sidebar_style,
+                                ),
+                                html.Div(
+                                    [dcc.Graph(id="housing-chart", style={"height": "700px"})],
                                     style=_chart_style,
                                 ),
                             ],
@@ -2435,7 +2535,133 @@ def update_ap_chart(level, geo_names, metric, sex):
     return fig
 
 
+_HOUSING_NOTES = {
+    "trends": (
+        "ACS 5-Year Estimates; each point pools five years (2024 = 2020–24). "
+        "Headship and ownership count householders aged 25–34 per person aged "
+        "25–34, so they fall when young adults live with parents or roommates. "
+        "Price-to-income is median home value over median household income; the "
+        "earliest windows include the 2005–07 housing bubble."
+    ),
+    "metro": (
+        "Each dot is a metro area (ACS 2020–24), sized by population. The "
+        "regulation index is the Wharton Residential Land Use Regulatory Index, "
+        "from a 2018 survey of local governments (Gyourko, Hartley & Krimmel, "
+        "NBER w26573), averaged over each metro's responding jurisdictions; only "
+        "the {n} metros with at least 5 responses are shown. Higher = more "
+        "restrictive. This is an association, not a measured effect: heavily "
+        "regulated metros also tend to be coastal and short on buildable land, "
+        "and expensive places may adopt more rules."
+    ),
+}
+
+
+@app.callback(
+    Output("housing-view", "value"),
+    Output("housing-metric", "value"),
+    Output("housing-geo", "value"),
+    [Input(f"housing-preset-{i}", "n_clicks") for i in range(len(SUGGESTED_HOUSING))],
+    State("housing-geo", "value"),
+    prevent_initial_call=True,
+)
+def load_housing_preset(*args):
+    *_, geo = args
+    s = SUGGESTED_HOUSING[_triggered_idx("housing-preset")]
+    # Metro presets leave the state picker as it was.
+    return s["view"], s["metric"], s["geo"] or geo
+
+
+@app.callback(Output("housing-geo-controls", "style"), Input("housing-view", "value"))
+def toggle_housing_geo(view):
+    return {} if view == "trends" else {"display": "none"}
+
+
+@app.callback(
+    Output("housing-chart", "figure"),
+    Output("housing-note", "children"),
+    Input("housing-view", "value"),
+    Input("housing-metric", "value"),
+    Input("housing-geo", "value"),
+)
+def update_housing_chart(view, metric, geo_names):
+    # Several of these move within a few points, where ".0%" ticks repeat.
+    yaxis = {**_axis_fmt(metric), "tickformat": _hover_fmt(metric)}
+    if view == "metro":
+        return _housing_metro_fig(metric, yaxis)
+    if not geo_names:
+        return px.line(), _HOUSING_NOTES["trends"]
+    df = housing_state[housing_state["state"].isin(geo_names)].copy()
+    df["state"] = df["state"].astype(str)
+    df["window"] = df["year"].map(_acs5_window)
+    fig = px.line(
+        df.sort_values(["state", "year"]),
+        x="year",
+        y=metric,
+        color="state",
+        markers=True,
+        custom_data=["window"],
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        category_orders={"state": [g for g in HOUSING_STATES if g in geo_names]},
+    )
+    fig.update_traces(
+        hovertemplate=(
+            f"%{{fullData.name}}<br>ACS %{{customdata[0]}}<br>"
+            f"%{{y:{_hover_fmt(metric)}}}<extra></extra>"
+        )
+    )
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 20, "b": 40},
+        xaxis={"title": "ACS 5-year estimate (end year)", "dtick": 1},
+        yaxis=yaxis,
+        legend_title="State",
+    )
+    return fig, _HOUSING_NOTES["trends"]
+
+
+def _housing_metro_fig(metric, yaxis):
+    df = housing_metro.dropna(subset=["wrluri", metric])
+    df = df.assign(name=df["NAME"].str.replace(" Metro Area", "", regex=False))
+    fig = px.scatter(
+        df,
+        x="wrluri",
+        y=metric,
+        size="Pop",
+        size_max=40,
+        hover_name="name",
+        color_discrete_sequence=px.colors.qualitative.Set2,
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{hovertext}</b><br>"
+            f"{_metric_label('wrluri')}: %{{x:.2f}}<br>"
+            f"{_metric_label(metric)}: %{{y:{_hover_fmt(metric)}}}<extra></extra>"
+        ),
+        marker={"opacity": 0.7, "line": {"width": 0.5, "color": "white"}},
+    )
+    trend = _compute_trendline(df, "wrluri", metric)
+    if trend is not None:
+        x_line, y_line, _, _, r2 = trend
+        r = np.sign(np.corrcoef(df["wrluri"], df[metric])[0, 1]) * np.sqrt(r2)
+        fig.add_scatter(
+            x=x_line,
+            y=y_line,
+            mode="lines",
+            line={"color": "#555", "dash": "dash"},
+            name=f"Trend (r = {r:+.2f}, unweighted)",
+            hoverinfo="skip",
+        )
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 20, "b": 40},
+        xaxis={**_axis_fmt("wrluri"), "title": "← less restrictive    "
+               f"{_metric_label('wrluri')}    more restrictive →"},
+        yaxis=yaxis,
+        legend={"orientation": "h", "y": 1.02, "x": 0},
+    )
+    return fig, _HOUSING_NOTES["metro"].format(n=len(df))
+
+
 _register_preset_highlight("trends-preset", "trends-active-preset", len(SUGGESTED_TRENDS))
+_register_preset_highlight("housing-preset", "housing-active-preset", len(SUGGESTED_HOUSING))
 _register_preset_highlight(
     "scatter-preset", "scatter-active-preset", len(SUGGESTED_SCATTERS)
 )
