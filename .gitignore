@@ -15,3 +15,6 @@ __pycache__
 .env
 # Exploratory analysis (not shipped)
 analysis/
+# Election forecast inputs and intermediate outputs (the code is tracked)
+elections/raw/
+elections/data/
