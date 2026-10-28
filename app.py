@@ -8,6 +8,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import plotly.io as pio
 from dash import Dash, html, dcc, Input, Output, State, callback_context
 
@@ -26,6 +27,10 @@ from config import (
     CENSUS_2000_YEAR,
     CPI_COLS,
     DEFAULT_VAR,
+    DEM_COLOR,
+    ELECTION_MAJORITY,
+    ELECTION_VIEWS,
+    REP_COLOR,
     US_LABEL,
     FEMALE_COLOR,
     HOUSING_METRICS,
@@ -169,6 +174,9 @@ housing_metro = _read_acs("c_housing_metro.csv", dtype={"cbsa": object})
 HOUSING_STATES = [US_LABEL] + sorted(
     s for s in housing_state["state"].astype(str).unique() if s != US_LABEL
 )
+# Elections: 2026 forecasts, one row per race and the seat-count distribution.
+forecast_races = {c: pd.read_csv(f"c_forecast_{c}_2026.csv") for c in ELECTION_MAJORITY}
+forecast_seats = {c: pd.read_csv(f"c_forecast_{c}_seats_2026.csv") for c in ELECTION_MAJORITY}
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
 if DEV_MODE:
@@ -1568,6 +1576,52 @@ app.layout = html.Div(
                         ),
                     ],
                 ),
+                dcc.Tab(
+                    label="Elections",
+                    style=_tab_style,
+                    selected_style=_tab_style,
+                    children=[
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Label("2026 forecast", style=_bold),
+                                        dcc.RadioItems(
+                                            id="election-view",
+                                            options=[
+                                                {"label": f"  {v}", "value": k}
+                                                for k, v in ELECTION_VIEWS.items()
+                                            ],
+                                            value="senate_seats",
+                                            labelStyle={
+                                                "display": "block",
+                                                "marginTop": "4px",
+                                            },
+                                        ),
+                                        html.Div(
+                                            id="election-summary",
+                                            style={"marginTop": "16px", "fontSize": "14px"},
+                                        ),
+                                        html.Div(
+                                            id="election-note",
+                                            style={
+                                                "fontSize": "11px",
+                                                "color": "#888",
+                                                "marginTop": "16px",
+                                            },
+                                        ),
+                                    ],
+                                    style=_sidebar_style,
+                                ),
+                                html.Div(
+                                    [dcc.Graph(id="election-chart", style={"height": "700px"})],
+                                    style=_chart_style,
+                                ),
+                            ],
+                            style=_flex_row,
+                        ),
+                    ],
+                ),
             ],
         ),
     ]
@@ -2658,6 +2712,120 @@ def _housing_metro_fig(metric, yaxis):
         legend={"orientation": "h", "y": 1.02, "x": 0},
     )
     return fig, _HOUSING_NOTES["metro"].format(n=len(df))
+
+
+_ELECTION_NOTES = {
+    "senate": (
+        "Each race: the state's lean in the last presidential election, whether an "
+        "incumbent is running, and the national mood from the generic congressional "
+        "ballot. Senate races move only about 0.7–0.9 points per point of national "
+        "House vote, and past elections can't pin that down, so this averages 12 "
+        "versions of the model (their odds of a Democratic majority range from "
+        "30% to 68%). Independents in Idaho, Nebraska and South Dakota count as the "
+        "anti-Republican candidate but not toward a Democratic majority; Osborn says "
+        "he won't caucus with either party. Backtest on the 2010–2022 midterms: "
+        "119 of 134 races called."
+    ),
+    "house": (
+        "Each district: its lean in the 2024 presidential election on the 2026 lines "
+        "(nine states redrew; Missouri's and Virginia's new maps were blocked), "
+        "whether an incumbent is running, and the national mood from the generic "
+        "ballot. District leans: The Downballot. Seats with only one major party on "
+        "the ballot are counted for that party. Louisiana's House general election "
+        "is December 12. Backtest on the 2010–2022 midterms: 1,452 of 1,557 "
+        "contested races called."
+    ),
+}
+
+
+def _seat_summary(chamber):
+    seats = forecast_seats[chamber]
+    need = ELECTION_MAJORITY[chamber]
+    cdf = seats["prob"].cumsum()
+    lo, med, hi = (int(seats["seats"][cdf >= q].iloc[0]) for q in (0.1, 0.5, 0.9))
+    p = seats.loc[seats["seats"] >= need, "prob"].sum()
+    return p, med, lo, hi
+
+
+@app.callback(
+    Output("election-chart", "figure"),
+    Output("election-summary", "children"),
+    Output("election-note", "children"),
+    Input("election-view", "value"),
+)
+def update_election_chart(view):
+    chamber, kind = view.split("_")
+    need = ELECTION_MAJORITY[chamber]
+    p, med, lo, hi = _seat_summary(chamber)
+    meta = forecast_seats[chamber].iloc[0]
+    gb = 2 * meta["generic_ballot_dem2"] - 1
+    summary = [
+        html.Div(f"Democrats win {chamber.title()}: {p:.0%}", style=_bold),
+        html.Div(f"Democratic seats: {med} (80% range {lo}–{hi}); {need} needed"),
+        html.Div(
+            f"As of {meta['as_of']}; generic ballot D+{gb * 100:.1f} (two-party)",
+            style={"marginTop": "8px", "color": "#555"},
+        ),
+    ]
+    fig = _election_seats_fig(chamber) if kind == "seats" else _election_races_fig(chamber)
+    return fig, summary, _ELECTION_NOTES[chamber]
+
+
+def _election_seats_fig(chamber):
+    seats = forecast_seats[chamber]
+    need = ELECTION_MAJORITY[chamber]
+    fig = go.Figure(
+        go.Bar(
+            x=seats["seats"],
+            y=seats["prob"],
+            marker_color=[DEM_COLOR if s >= need else REP_COLOR for s in seats["seats"]],
+            hovertemplate="%{x} Democratic seats: %{y:.1%}<extra></extra>",
+        )
+    )
+    fig.add_vline(x=need - 0.5, line_dash="dash", line_color="#555",
+                  annotation_text=f"{need} for a majority", annotation_position="top")
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 30, "b": 40},
+        xaxis={"title": "Democratic seats (simulated)"},
+        yaxis={"title": "Probability", "tickformat": ".0%"},
+        bargap=0.05,
+    )
+    return fig
+
+
+def _election_races_fig(chamber):
+    df = forecast_races[chamber].copy()
+    if chamber == "house":
+        df = df[df["p_dem"].between(0.2, 0.8)]
+        df["race"] = df["state_po"] + "-" + df["district"].astype(str).str.zfill(2)
+    else:
+        df["race"] = df["state_po"] + np.where(df["special"], " (special)", "")
+    df = df.sort_values("p_dem")
+    inc = df["inc"].map({1: "Democratic incumbent", -1: "Republican incumbent", 0: "Open seat"})
+    dem = df["dem_side"] if chamber == "senate" else df["dem"]
+    fig = go.Figure(
+        go.Bar(
+            x=df["p_dem"],
+            y=df["race"],
+            orientation="h",
+            marker_color=np.where(df["p_dem"] >= 0.5, DEM_COLOR, REP_COLOR),
+            customdata=np.column_stack([dem, df["rep"], inc, df["pred"], df["lean"]]),
+            hovertemplate=(
+                "<b>%{y}</b>: %{customdata[0]} (D) vs %{customdata[1]} (R)<br>"
+                "%{customdata[2]}<br>P(Democrat wins): %{x:.0%}<br>"
+                "Expected Democratic two-party share: %{customdata[3]:.1%}<br>"
+                "Presidential lean vs nation: %{customdata[4]:+.1%}<extra></extra>"
+            ),
+        )
+    )
+    fig.add_vline(x=0.5, line_dash="dash", line_color="#555")
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 20, "b": 40},
+        xaxis={"title": "Probability the Democrat (or independent) wins", "tickformat": ".0%",
+               "range": [0, 1]},
+        yaxis={"title": None, "tickfont": {"size": 10}},
+    )
+    return fig
 
 
 _register_preset_highlight("trends-preset", "trends-active-preset", len(SUGGESTED_TRENDS))

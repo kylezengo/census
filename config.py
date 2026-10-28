@@ -446,6 +446,18 @@ SUGGESTED_HOUSING = [
     },
 ]
 
+# Elections tab: 2026 forecasts from analysis/senate_model.py and house_model.py
+ELECTION_VIEWS = {
+    "senate_seats": "Senate: seat odds",
+    "senate_races": "Senate: every race",
+    "house_seats": "House: seat odds",
+    "house_races": "House: competitive races (20–80%)",
+}
+# Seats for control. Vice President Vance breaks Senate ties, so Democrats need 51.
+ELECTION_MAJORITY = {"senate": 51, "house": 218}
+DEM_COLOR = "#2166ac"
+REP_COLOR = "#b2182b"
+
 
 # CPI-U annual averages (BLS, all items) — used to express dollar metrics in 2022 dollars
 # Inflation & labels #########################################################

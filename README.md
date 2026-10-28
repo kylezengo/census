@@ -35,6 +35,9 @@ pass `--force` to re-download.
 | 7 | `download_nhgis.py` | `c_nhgis_*.csv` (decennial censuses 1790–1990 via NHGIS; needs `ipums_api_key`) |
 | 8 | `download_age_profile.py` | `c_age_profile_2024.csv` (metrics by age, for the Age Profile tab) |
 | 9 | `download_housing.py` | `c_housing_state.csv`, `c_housing_metro.csv` (housing-shortage indicators and the Wharton land-use regulation index, for the Housing tab; needs `openpyxl`) |
+| 10 | `elections/fetch_elections.py` | MIT Election Lab House, Senate and President returns, 1976–2024, cleaned into `elections/data/`. The House file sits behind a Dataverse guestbook: download `1976-2024-house.tab` by hand from [doi:10.7910/DVN/IG0UN2](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/IG0UN2) into `elections/raw/` first |
+| 11 | `elections/fetch_house_inputs.py` | District presidential leans for 2006–2026 lines (The Downballot) and the 2026 House candidate list (Wikipedia) |
+| 12 | `elections/senate_model.py`, `elections/house_model.py` | `c_forecast_{senate,house}_2026.csv` and `c_forecast_{senate,house}_seats_2026.csv` (backtested 2026 forecasts, for the Elections tab; needs `scipy`). The 2026 Senate race list and the generic-ballot average are set in `senate_model.py` |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -78,6 +81,8 @@ gsutil -m cp \
   c_nhgis_state_race.csv c_nhgis_county_race.csv \
   c_nhgis_state_age.csv c_nhgis_county_age.csv \
   c_housing_state.csv c_housing_metro.csv \
+  c_forecast_senate_2026.csv c_forecast_senate_seats_2026.csv \
+  c_forecast_house_2026.csv c_forecast_house_seats_2026.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/
@@ -129,6 +134,14 @@ slow (~30s) first request after idle.
   Version 21.0* [dataset]. Minneapolis, MN: IPUMS. 2026.
   http://doi.org/10.18128/D050.V21.0. NHGIS terms forbid redistributing the data, so
   the CSVs stay out of git and the GCS bucket must stay private.
+- **c_forecast_*.csv** (election history) — MIT Election Data and Science Lab, Harvard
+  Dataverse: U.S. House 1976–2024 (doi:10.7910/DVN/IG0UN2), U.S. Senate statewide
+  1976–2024 (doi:10.7910/DVN/PEJ5QU), U.S. President 1976–2024 (doi:10.7910/DVN/42MVDX).
+- **c_forecast_*.csv** (district leans) — The Downballot, presidential results by
+  congressional district, https://www.the-downballot.com/p/the-downballots-calculations-of-presidential
+- **c_forecast_*.csv** (2026 candidates) — Wikipedia, "2026 United States House of
+  Representatives elections" and "2026 United States Senate elections" (CC BY-SA).
+  Generic ballot: RealClearPolling average, read 2026-10-28.
 
 ## Notes
 
