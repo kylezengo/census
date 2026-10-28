@@ -94,7 +94,9 @@ RACES_2026 = [
     ("MI", False, 0, "D", "El-Sayed", "Rogers", False),
     ("MN", False, 0, "D", "Flanagan", "Tafoya", False),
     ("MS", False, -1, "R", "Colom", "Hyde-Smith", False),
-    ("MT", False, 0, "R", "Bankhead", "Alme", False),
+    # Montana is three-way: independent Seth Bodnar polls well ahead of Democrat
+    # Alani Bankhead, so he is the anti-Republican candidate here.
+    ("MT", False, 0, "R", "Bodnar (I)", "Alme", True),
     ("NE", False, -1, "R", "Osborn (I)", "Ricketts", True),
     ("NH", False, 0, "D", "Pappas", "Sununu", False),
     ("NJ", False, 1, "D", "Booker", "Murphy", False),
@@ -299,8 +301,6 @@ def main():
     seats = D_NOT_UP + w[:, ~ind].sum(axis=1)
     f["pred"], f["p_dem"] = np.mean(preds, axis=0), w.mean(axis=0)
     f.to_csv(DATA / "senate_forecast_2026.csv", index=False)
-    export_for_app("senate", f[["state_po", "special", "dem_side", "rep", "inc", "lean", "pred", "p_dem"]],
-                   seats)
     sp = pd.DataFrame(specs)
     sp.to_csv(DATA / "senate_specs_2026.csv", index=False)
 

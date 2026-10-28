@@ -2716,15 +2716,16 @@ def _housing_metro_fig(metric, yaxis):
 
 _ELECTION_NOTES = {
     "senate": (
-        "Each race: the state's lean in the last presidential election, whether an "
-        "incumbent is running, and the national mood from the generic congressional "
-        "ballot. Senate races move only about 0.7–0.9 points per point of national "
-        "House vote, and past elections can't pin that down, so this averages 12 "
-        "versions of the model (their odds of a Democratic majority range from "
-        "30% to 68%). Independents in Idaho, Nebraska and South Dakota count as the "
-        "anti-Republican candidate but not toward a Democratic majority; Osborn says "
-        "he won't caucus with either party. Backtest on the 2010–2022 midterms: "
-        "119 of 134 races called."
+        "Each race starts from fundamentals (the state's presidential lean, whether "
+        "an incumbent is running, and the national generic ballot, averaged over 12 "
+        "versions of the model) and moves toward the average of nonpartisan polls "
+        "from the last 6–30 days. How far depends on how polled the race is: "
+        "1998–2022 races put 85% of the weight on polls when there were two or "
+        "more, 39% when there was one. Polls: Wikipedia race pages; history: "
+        "FiveThirtyEight. Independents in Idaho, Montana, Nebraska and South "
+        "Dakota count as the anti-Republican candidate but not toward a Democratic "
+        "majority. Backtest on the 2010–2022 midterms: 124 of 134 races called "
+        "(118 on fundamentals alone)."
     ),
     "house": (
         "Each district: its lean in the 2024 presidential election on the 2026 lines "
@@ -2803,6 +2804,14 @@ def _election_races_fig(chamber):
     df = df.sort_values("p_dem")
     inc = df["inc"].map({1: "Democratic incumbent", -1: "Republican incumbent", 0: "Open seat"})
     dem = df["dem_side"] if chamber == "senate" else df["dem"]
+    if chamber == "senate":
+        polls = df["n_polls"].astype(int)
+        inc = inc + np.where(
+            polls > 0,
+            "<br>Poll average: " + (100 * df["poll"]).round(1).astype(str)
+            + "% D two-party (" + polls.astype(str) + np.where(polls == 1, " poll)", " polls)"),
+            "<br>No recent nonpartisan polls",
+        )
     fig = go.Figure(
         go.Bar(
             x=df["p_dem"],

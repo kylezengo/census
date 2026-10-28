@@ -37,7 +37,7 @@ pass `--force` to re-download.
 | 9 | `download_housing.py` | `c_housing_state.csv`, `c_housing_metro.csv` (housing-shortage indicators and the Wharton land-use regulation index, for the Housing tab; needs `openpyxl`) |
 | 10 | `elections/fetch_elections.py` | MIT Election Lab House, Senate and President returns, 1976–2024, cleaned into `elections/data/`. The House file sits behind a Dataverse guestbook: download `1976-2024-house.tab` by hand from [doi:10.7910/DVN/IG0UN2](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/IG0UN2) into `elections/raw/` first |
 | 11 | `elections/fetch_house_inputs.py` | District presidential leans for 2006–2026 lines (The Downballot) and the 2026 House candidate list (Wikipedia) |
-| 12 | `elections/senate_model.py`, `elections/house_model.py` | `c_forecast_{senate,house}_2026.csv` and `c_forecast_{senate,house}_seats_2026.csv` (backtested 2026 forecasts, for the Elections tab; needs `scipy`). The 2026 Senate race list and the generic-ballot average are set in `senate_model.py` |
+| 12 | `elections/senate_polls.py`, `elections/house_model.py` | `c_forecast_{senate,house}_2026.csv` and `c_forecast_{senate,house}_seats_2026.csv` (backtested 2026 forecasts, for the Elections tab; needs `scipy` and `lxml`). The Senate forecast blends `senate_model.py`'s fundamentals with state polls (FiveThirtyEight's archive for 1998–2022, Wikipedia race pages for 2026). The 2026 Senate race list and the generic-ballot average are set in `senate_model.py` |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -142,6 +142,9 @@ slow (~30s) first request after idle.
 - **c_forecast_*.csv** (2026 candidates) — Wikipedia, "2026 United States House of
   Representatives elections" and "2026 United States Senate elections" (CC BY-SA).
   Generic ballot: RealClearPolling average, read 2026-10-28.
+- **c_forecast_senate*.csv** (polls) — FiveThirtyEight pollster-ratings `raw_polls.csv`,
+  https://github.com/fivethirtyeight/data/tree/master/pollster-ratings (1998–2022), and the
+  polling tables on Wikipedia's 2026 Senate race pages (CC BY-SA), read 2026-10-28.
 
 ## Notes
 
