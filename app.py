@@ -3182,21 +3182,27 @@ def _backtest_map_fig(df, chamber, year):
         miss_text = (miss["year"].astype(str) + " " + miss["race"] + ": forecast "
                      + (100 * miss["p_dem"]).round(0).astype(int).astype(str) + "% D, "
                      + np.where(miss["dem_won"], "Democrat", "Republican") + " won")
-        st = df.groupby("state_po").size().rename("races").to_frame()
+        # Share of each state's races missed, against the misses the model
+        # itself expected (each race's chance of going the other way)
+        st = df.assign(expected=np.minimum(df["p_dem"], 1 - df["p_dem"])).groupby(
+            "state_po").agg(races=("race", "size"), expected=("expected", "sum"))
         st["misses"] = miss.groupby("state_po").size()
         st["misses"] = st["misses"].fillna(0).astype(int)
+        st["share"] = st["misses"] / st["races"]
         st["text"] = miss_text.groupby(miss["state_po"]).agg("<br>".join)
         st["text"] = st["text"].fillna("No misses")
         st = st.reset_index()
         fig = px.choropleth(
             st, locations="state_po", locationmode="USA-states", scope="usa",
-            color="misses", hover_name="state_po", custom_data=["races", "text"],
-            color_continuous_scale="Oranges", range_color=[0, max(1, st["misses"].max())],
+            color="share", hover_name="state_po",
+            custom_data=["misses", "races", "expected", "text"],
+            color_continuous_scale="Oranges", range_color=[0, max(0.05, st["share"].max())],
         )
-        fig.update_traces(hovertemplate=("<b>%{hovertext}</b>: %{z} missed of "
-                                         "%{customdata[0]} races<br>%{customdata[1]}"
+        fig.update_traces(hovertemplate=("<b>%{hovertext}</b>: %{customdata[0]} missed of "
+                                         "%{customdata[1]} races (%{z:.0%}); the model "
+                                         "expected %{customdata[2]:.1f}<br>%{customdata[3]}"
                                          "<extra></extra>"))
-        fig.update_layout(coloraxis_colorbar={"title": "Misses"})
+        fig.update_layout(coloraxis_colorbar={"title": "Share missed", "tickformat": ".0%"})
     fig.update_layout(margin={"l": 0, "r": 0, "t": 30, "b": 0},
                       legend={"orientation": "h", "y": 1.02, "x": 0, "title": None})
     return fig
