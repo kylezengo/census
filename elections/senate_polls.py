@@ -149,11 +149,17 @@ def polls_wiki(st, special, dem_label, rep_label, year=2026):
     """Head-to-head general-election polls for one race: the table whose
     columns include both nominees. Returns pollster, end date, D-side and R
     shares, likely-voter flag and partisan flag, one row per poll question."""
+    return poll_tables(wiki_page(st, special, year), st, special, dem_label, rep_label, year)
+
+
+def poll_tables(html, st, special, dem_label, rep_label, year=2026):
+    """Poll rows from every table in html with a Poll source column and one
+    column per nominee."""
     import io
     dem, rep = surname(dem_label), surname(rep_label)
     rows = []
     # Some pages carry malformed spans like rowspan="2"" that crash read_html
-    html = re.sub(r'\b(rowspan|colspan)=["\']?(\d+)[^\s>]*', r'\1="\2"', wiki_page(st, special, year))
+    html = re.sub(r'\b(rowspan|colspan)=["\']?(\d+)[^\s>]*', r'\1="\2"', html)
     for t in pd.read_html(io.StringIO(html)):
         cols = [" ".join(map(str, c)) if isinstance(c, tuple) else str(c) for c in t.columns]
         if not any("Poll source" in c for c in cols):

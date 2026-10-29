@@ -53,6 +53,8 @@ FILES = [
     "c_backtest_senate_seats.csv",
     "c_backtest_house_races.csv",
     "c_backtest_house_seats.csv",
+    "c_backtest_president_races.csv",
+    "c_backtest_president_seats.csv",
     # Static mapping
     "zcta_to_dma.csv",
     # Shapefiles

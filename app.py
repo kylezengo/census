@@ -27,8 +27,8 @@ from config import (
     CENSUS_2000_YEAR,
     CPI_COLS,
     DEFAULT_VAR,
+    BACKTEST_CHAMBERS,
     BACKTEST_VIEWS,
-    BACKTEST_YEARS,
     DEM_COLOR,
     ELECTION_MAJORITY,
     ELECTION_VIEWS,
@@ -181,8 +181,18 @@ HOUSING_STATES = [US_LABEL] + sorted(
 forecast_races = {c: pd.read_csv(f"c_forecast_{c}_2026.csv") for c in ELECTION_MAJORITY}
 forecast_seats = {c: pd.read_csv(f"c_forecast_{c}_seats_2026.csv") for c in ELECTION_MAJORITY}
 # Backtest 2010-2024: per race (forecast and actual) and per-year seat distributions.
-backtest_races = {c: pd.read_csv(f"c_backtest_{c}_races.csv") for c in ELECTION_MAJORITY}
-backtest_seats = {c: pd.read_csv(f"c_backtest_{c}_seats.csv") for c in ELECTION_MAJORITY}
+backtest_races = {c: pd.read_csv(f"c_backtest_{c}_races.csv") for c in BACKTEST_CHAMBERS}
+backtest_seats = {c: pd.read_csv(f"c_backtest_{c}_seats.csv") for c in BACKTEST_CHAMBERS}
+_POLLED = ("senate", "president")  # backtests with a poll blend and a fundamentals-only version
+
+
+def _backtest_years(chamber):
+    return sorted(int(y) for y in backtest_seats[chamber]["year"].unique())
+
+
+def _backtest_year_options(chamber):
+    return [{"label": "All years", "value": "all"}] + [
+        {"label": str(y), "value": y} for y in reversed(_backtest_years(chamber))]
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
 if DEV_MODE:
@@ -1625,8 +1635,8 @@ app.layout = html.Div(
                                                 dcc.RadioItems(
                                                     id="backtest-chamber",
                                                     options=[
-                                                        {"label": "  Senate", "value": "senate"},
-                                                        {"label": "  House", "value": "house"},
+                                                        {"label": f"  {v[0]}", "value": k}
+                                                        for k, v in BACKTEST_CHAMBERS.items()
                                                     ],
                                                     value="senate",
                                                     inline=True,
@@ -1648,9 +1658,7 @@ app.layout = html.Div(
                                                 html.Label("Election", style=_bold_mt),
                                                 dcc.Dropdown(
                                                     id="backtest-year",
-                                                    options=[{"label": "All years", "value": "all"}]
-                                                    + [{"label": str(y), "value": y}
-                                                       for y in reversed(BACKTEST_YEARS)],
+                                                    options=_backtest_year_options("senate"),
                                                     value="all",
                                                     clearable=False,
                                                 ),
@@ -2933,7 +2941,33 @@ _BACKTEST_NOTES = {
         "aren't forecast and keep their actual result in the seat totals. District "
         "lines changed over the period, so the map counts misses by state."
     ),
+    "president": (
+        "Each election re-forecast with today's model, using only results from "
+        "earlier years: each state's lean in the previous presidential election, "
+        "the final national polling average, and nonpartisan state polls from the "
+        "last 6–30 days (FiveThirtyEight through 2020, Wikipedia for 2024), blended "
+        "the same way as the Senate. Electoral votes: each state's House seats plus "
+        "two (DC three). Maine and Nebraska are scored statewide, so totals can "
+        "differ by one from the official count (2008, 2016). Simulated errors share "
+        "a national shift and a regional (Census division) shift, both sized from "
+        "earlier elections, which had small polling misses that barely clustered by "
+        "region. So the electoral-vote ranges are too narrow, and 2016, when the "
+        "misses followed education more than geography, is the clearest failure. "
+        "No 2028 forecast yet."
+    ),
 }
+
+
+@app.callback(
+    Output("backtest-year", "options"),
+    Output("backtest-year", "value"),
+    Input("backtest-chamber", "value"),
+    State("backtest-year", "value"),
+)
+def update_backtest_years(chamber, year):
+    """Each chamber has its own election years; keep the chosen one if it has it."""
+    keep = year == "all" or year in _backtest_years(chamber)
+    return _backtest_year_options(chamber), year if keep else "all"
 
 
 def _race_label(df, chamber):
@@ -2973,21 +3007,22 @@ def _backtest_fig(chamber, view, year):
 
 def _backtest_summary(df, chamber, year):
     seats = backtest_seats[chamber]
+    _, unit, prize = BACKTEST_CHAMBERS[chamber]
     n = len(df)
     lines = [
         html.Div(
-            f"Races called: {df['called'].sum()} of {n} "
+            f"{'States' if chamber == 'president' else 'Races'} called: {df['called'].sum()} of {n} "
             f"(Brier {_brier(df['p_dem'], df['dem_won']):.3f})",
             style=_bold,
         )
     ]
-    if chamber == "senate":
+    if chamber in _POLLED:
         fund = (df["p_fund"] > 0.5) == df["dem_won"]
         lines.append(html.Div(
             f"Fundamentals alone, without polls: {fund.sum()} of {n} "
             f"(Brier {_brier(df['p_fund'], df['dem_won']):.3f})"
         ))
-    years = BACKTEST_YEARS if year == "all" else [year]
+    years = _backtest_years(chamber) if year == "all" else [year]
     inside = control_right = 0
     for y in years:
         s = seats[seats["year"] == y]
@@ -2998,22 +3033,24 @@ def _backtest_summary(df, chamber, year):
         if year != "all":
             won = "Democrats" if actual >= need else "Republicans"
             lines += [
-                html.Div(f"Democratic seats: forecast {med} (80% range {lo}–{hi}), "
+                html.Div(f"Democratic {unit}: forecast {med} (80% range {lo}–{hi}), "
                          f"actual {actual}", style={"marginTop": "8px"}),
-                html.Div(f"Chance of Democratic control: {p:.0%}; {won} won it "
-                         f"({need} seats needed)"),
+                html.Div(f"Chance Democrats win {prize}: {p:.0%}; {won} won it "
+                         f"({need} {unit} needed)"),
             ]
     if year == "all":
         lines += [
-            html.Div(f"Actual seats inside the 80% range: {inside} of {len(years)} elections",
+            html.Div(f"Actual {unit} inside the 80% range: {inside} of {len(years)} elections",
                      style={"marginTop": "8px"}),
-            html.Div(f"Control called right: {control_right} of {len(years)}"),
+            html.Div(f"Winner of {prize} called right: {control_right} of {len(years)}"),
         ]
     return lines
 
 
 def _backtest_seats_fig(chamber, year):
     seats = backtest_seats[chamber]
+    _, unit, prize = BACKTEST_CHAMBERS[chamber]
+    win = "to win" if chamber == "president" else "for control"
     if year != "all":
         s = seats[seats["year"] == year]
         need, actual = int(s["need"].iloc[0]), int(s["actual"].iloc[0])
@@ -3022,22 +3059,22 @@ def _backtest_seats_fig(chamber, year):
                 x=s["seats"],
                 y=s["prob"],
                 marker_color=[DEM_COLOR if v >= need else REP_COLOR for v in s["seats"]],
-                hovertemplate="%{x} Democratic seats: %{y:.1%}<extra></extra>",
+                hovertemplate=f"%{{x}} Democratic {unit}: %{{y:.1%}}<extra></extra>",
             )
         )
         fig.add_vline(x=need - 0.5, line_dash="dash", line_color="#555",
-                      annotation_text=f"{need} for control", annotation_position="top left")
+                      annotation_text=f"{need} {win}", annotation_position="top left")
         fig.add_vline(x=actual, line_color="#222", line_width=3,
                       annotation_text=f"Actual: {actual}", annotation_position="top right")
         fig.update_layout(
             margin={"l": 40, "r": 20, "t": 30, "b": 40},
-            xaxis={"title": f"Democratic seats after {year} (simulated)"},
+            xaxis={"title": f"Democratic {unit} in {year} (simulated)"},
             yaxis={"title": "Probability", "tickformat": ".0%"},
             bargap=0.05,
         )
         return fig
     rows = []
-    for y in BACKTEST_YEARS:
+    for y in _backtest_years(chamber):
         s = seats[seats["year"] == y]
         need, actual = int(s["need"].iloc[0]), int(s["actual"].iloc[0])
         p, med, lo, hi = _seat_summary(s, need)
@@ -3046,9 +3083,9 @@ def _backtest_seats_fig(chamber, year):
     r = pd.DataFrame(rows)
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=r["year"], y=r["need"], mode="markers", name="Seats for control",
+        x=r["year"], y=r["need"], mode="markers", name=f"{unit.capitalize()} {win}",
         marker={"symbol": "line-ew", "size": 28, "line": {"width": 2, "color": "#999"}},
-        hovertemplate="%{x}: %{y} seats for control<extra></extra>",
+        hovertemplate=f"%{{x}}: %{{y}} {unit} {win}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=r["year"], y=r["med"], mode="markers", name="Forecast (median, 80% range)",
@@ -3056,19 +3093,19 @@ def _backtest_seats_fig(chamber, year):
         error_y={"type": "data", "symmetric": False, "array": r["hi"] - r["med"],
                  "arrayminus": r["med"] - r["lo"], "color": DEM_COLOR, "thickness": 2},
         customdata=np.column_stack([r["lo"], r["hi"], r["p"]]),
-        hovertemplate=("%{x}: forecast %{y} seats (80% range %{customdata[0]}–"
-                       "%{customdata[1]})<br>Chance of Democratic control: "
+        hovertemplate=(f"%{{x}}: forecast %{{y}} {unit} (80% range %{{customdata[0]}}–"
+                       f"%{{customdata[1]}})<br>Chance Democrats win {prize}: "
                        "%{customdata[2]:.0%}<extra></extra>"),
     ))
     fig.add_trace(go.Scatter(
         x=r["year"], y=r["actual"], mode="markers", name="Actual",
         marker={"symbol": "x", "size": 11, "color": "#222"},
-        hovertemplate="%{x}: actual %{y} seats<extra></extra>",
+        hovertemplate=f"%{{x}}: actual %{{y}} {unit}<extra></extra>",
     ))
     fig.update_layout(
         margin={"l": 40, "r": 20, "t": 30, "b": 40},
-        xaxis={"title": None, "tickvals": BACKTEST_YEARS},
-        yaxis={"title": "Democratic seats"},
+        xaxis={"title": None, "tickvals": _backtest_years(chamber)},
+        yaxis={"title": f"Democratic {unit}"},
         legend={"orientation": "h", "y": 1.05, "x": 0},
     )
     return fig
@@ -3079,7 +3116,7 @@ def _backtest_hover(df, chamber):
     extra = ""
     cols = [df["year"], df["race"], df["dem_cand"].fillna("").str.title(),
             df["rep_cand"].fillna("").str.title(), df["p_dem"], df["pred"], df["dem2"]]
-    if chamber == "senate":
+    if chamber in _POLLED:
         polls = df["n_polls"].fillna(0).astype(int)
         cols.append(np.where(
             polls > 0,
@@ -3104,7 +3141,7 @@ def _backtest_races_fig(df, chamber):
         custom, template = _backtest_hover(d, chamber)
         fig.add_trace(go.Scattergl(
             x=d["pred"], y=d["dem2"], mode="markers", name=f"{name} ({len(d)})",
-            marker={"color": color, "size": 7 if chamber == "senate" else 5, "opacity": 0.8},
+            marker={"color": color, "size": 5 if chamber == "house" else 7, "opacity": 0.8},
             customdata=custom, hovertemplate=template,
         ))
     lo = min(df["pred"].min(), df["dem2"].min()) - 0.02
@@ -3127,8 +3164,8 @@ def _backtest_calibration_fig(df, chamber):
     """Binned forecast probability vs how often Democrats won, with the 90% range
     a perfectly calibrated forecast would land in given each bin's race count."""
     bins = np.linspace(0, 1, 11)
-    series = [("p_dem", "With polls" if chamber == "senate" else "Forecast", DEM_COLOR)]
-    if chamber == "senate":
+    series = [("p_dem", "With polls" if chamber in _POLLED else "Forecast", DEM_COLOR)]
+    if chamber in _POLLED:
         series.append(("p_fund", "Fundamentals only", "#999"))
     fig = go.Figure()
     fig.add_shape(type="line", x0=0, y0=0, x1=1, y1=1, line={"color": "#555", "dash": "dot"})
@@ -3157,7 +3194,7 @@ def _backtest_calibration_fig(df, chamber):
 
 
 def _backtest_map_fig(df, chamber, year):
-    if chamber == "senate" and year != "all":
+    if chamber in _POLLED and year != "all":
         # One election: each state's outcome, a miss outranking a second race
         rank = {"Missed": 0, "Democrat won, called": 1, "Republican won, called": 2}
         df = df.assign(outcome=np.where(~df["called"], "Missed", np.where(

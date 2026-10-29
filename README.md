@@ -41,6 +41,7 @@ pass `--force` to re-download.
 | — | `elections/pageviews.py` | Backtest only, not part of the forecast: tests whether candidates' Wikipedia page views (2016–2024, Wikimedia pageviews API) explain what the Senate forecast misses. They don't. Wikimedia throttles scripts without contact details; set a `wiki_user_agent` environment variable to run it at a normal pace |
 | — | `elections/markets.py` | Benchmark only, not part of the forecast: snapshots Kalshi and Polymarket prices for every 2026 House and Senate race (public APIs, no account) into `elections/data/markets_<date>.csv`, for scoring the forecast against the market after the election. Run it before election day |
 | 12 | `elections/senate_polls.py`, `elections/house_model.py` | `c_forecast_{senate,house}_2026.csv` and `c_forecast_{senate,house}_seats_2026.csv` (2026 forecasts), plus `c_backtest_{senate,house}_{races,seats}.csv` (every election 2010–2024 re-forecast with only earlier data), for the Elections tab; needs `scipy` and `lxml`. The Senate forecast blends `senate_model.py`'s fundamentals with state polls (FiveThirtyEight's archive for 1998–2022, Wikipedia race pages for 2024 and 2026). The 2026 Senate race list and the generic-ballot average are set in `senate_model.py` |
+| 13 | `elections/president_model.py` | `c_backtest_president_{races,seats}.csv`: presidential elections 2008–2024 re-forecast with only earlier data (state lean, national polling average, state polls), for the Elections tab's backtest. 2024 polls: Wikipedia's statewide and nationwide polling pages, fetched once through the Wikipedia API (`action=parse`) into `elections/raw/polls/pres2024/` |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -88,6 +89,7 @@ gsutil -m cp \
   c_forecast_house_2026.csv c_forecast_house_seats_2026.csv \
   c_backtest_senate_races.csv c_backtest_senate_seats.csv \
   c_backtest_house_races.csv c_backtest_house_seats.csv \
+  c_backtest_president_races.csv c_backtest_president_seats.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/

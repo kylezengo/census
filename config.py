@@ -460,6 +460,12 @@ REP_COLOR = "#b2182b"
 MISS_COLOR = "#e08214"
 # Backtest: each past election re-forecast with only what was known before it.
 BACKTEST_YEARS = list(range(2010, 2026, 2))
+# Backtest chambers: label, unit counted, and what Democrats win at the threshold
+BACKTEST_CHAMBERS = {
+    "senate": ("Senate", "seats", "control"),
+    "house": ("House", "seats", "control"),
+    "president": ("President", "electoral votes", "the presidency"),
+}
 BACKTEST_VIEWS = {
     "seats": "Seats: forecast vs actual",
     "races": "Races: forecast vs actual vote",
