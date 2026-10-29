@@ -1,4 +1,4 @@
-"""Senate forecast: backtest on the 2010-2022 midterms, then forecast 2026.
+"""Senate forecast: backtest on the 2010-2024 elections, then forecast 2026.
 
 Model, per race, on the Democratic share of the two-party vote:
     dem2 - 0.5 = national + b_lean * lean + b_inc * inc + error
@@ -12,14 +12,14 @@ Model, per race, on the Democratic share of the two-party vote:
   uses the generic ballot in its place. Senate races move only about two-thirds
   as much as the House vote (k ~ 0.6-0.7), so k is fit, not assumed to be 1.
 
-Training uses only elections before the test year, so the backtest never sees
-the future. Two error terms are simulated: one national (shared by every race
+Training uses only elections (and generic-ballot misses) before the test
+year, so the backtest never sees the future. Two error terms are simulated: one national (shared by every race
 that year: how far the year strays from its House vote, plus the generic
 ballot's miss on the House vote) and one per race.
 
 The forecast averages 12 specifications: training window (16, 24 or all years),
 c fit or fixed at 0, and the generic ballot raw or shifted by its historical
-lean. The 2010-2022 backtest can't tell them apart, yet they disagree a lot on
+miss. The 2010-2022 backtest can't tell them apart, yet they disagree a lot on
 2026, so the average is reported and each one is saved for scoring after the
 election.
 
@@ -45,18 +45,48 @@ rng = np.random.default_rng(0)
 
 # Generic ballot, two-party Democratic share. Backtest years: final
 # RealClearPolitics average (2010 D 41.3 / R 50.7, 2014 43.2 / 45.6,
-# 2018 49.7 / 42.4, 2022 45.5 / 48.0). 2026: RCP average 10/9-10/26,
-# D 51.6 / R 43.6; other aggregators range D+7.6 to D+9.
+# 2018 49.7 / 42.4, 2022 45.5 / 48.0; presidential years from Wikipedia's
+# House election pages: 2016 46.0 / 45.4, 2020 49.3 / 42.5, 2024 46.8 / 47.6
+# as of 10/29; 2012 was a tie per FiveThirtyEight). 2026: RCP average
+# 10/9-10/26, D 51.6 / R 43.6; other aggregators range D+7.6 to D+9.
 GENERIC_BALLOT = {
     2010: 41.3 / (41.3 + 50.7),
+    2012: 0.5,
     2014: 43.2 / (43.2 + 45.6),
+    2016: 46.0 / (46.0 + 45.4),
     2018: 49.7 / (49.7 + 42.4),
+    2020: 49.3 / (49.3 + 42.5),
     2022: 45.5 / (45.5 + 48.0),
+    2024: 46.8 / (46.8 + 47.6),
     2026: 51.6 / (51.6 + 43.6),
 }
-# Final RCP generic ballot minus actual House margin, 2002-2020 (R+ = Republicans
+BACKTEST = tuple(range(2010, 2026, 2))
+# Actual House margin minus final RCP generic ballot, 2002-2020 (+ = Democrats
 # beat their polls), per John McCormack. Halved to convert margin to two-party share.
-GB_MISSES = np.array([-2.9, -2.6, -3.6, 1.7, 2.6, 1.4, -3.3, -1.7, 1.1, -3.7]) / 100 / 2
+GB_MISSES = dict(zip(range(2002, 2022, 2),
+                     np.array([-2.9, -2.6, -3.6, 1.7, 2.6, 1.4, -3.3, -1.7, 1.1, -3.7]) / 100 / 2))
+# Democratic caucus seats after each election (independents who caucus with
+# them included; 2020 counts the January 2021 Georgia runoffs), for backtest
+# seat totals. Control needs 50 under a Democratic Vice President, else 51.
+D_CAUCUS = {2010: 53, 2012: 55, 2014: 46, 2016: 48, 2018: 47, 2020: 50, 2022: 51, 2024: 47}
+DEM_VP = {2010, 2012, 2014, 2020, 2022}
+
+
+def gb_misses(year):
+    """Generic-ballot misses known before an election, so the backtest never
+    sees later ones."""
+    return np.array([v for y, v in GB_MISSES.items() if y < year])
+
+
+def gb_bias(year):
+    """Mean known miss, 0 before any are known."""
+    m = gb_misses(year)
+    return float(m.mean()) if len(m) else 0.0
+
+
+def gb_var(year):
+    m = gb_misses(year)
+    return float(m.var()) if len(m) else 0.0
 
 # (training window in years, fit intercept c, shift generic ballot by its mean miss)
 SPECS = [(w, c, b) for w in (16, 24, 99) for c in (True, False) for b in (False, True)]
@@ -183,8 +213,12 @@ def senate_races():
             running = d.loc[d.side == side, "candidate"].map(name_tokens)
             if any(same_person(a, b) for a in running for b in won):
                 inc += sign
+        w = winners[(winners.race_year == year) & (winners.state_po == st) & (winners.special == special)]
+        lead = {side: d.loc[d.side == side].nlargest(1, "votes").candidate for side in ("DEM", "REP")}
         rows.append(dict(year=year, state_po=st, special=special, dem2=dem / (dem + rep) if dem + rep else np.nan,
-                         inc=inc, excluded=excluded))
+                         inc=inc, excluded=excluded, dem_won=bool((w.side == "DEM").any()),
+                         dem_cand=lead["DEM"].iloc[0] if len(lead["DEM"]) else "",
+                         rep_cand=lead["REP"].iloc[0] if len(lead["REP"]) else ""))
     return pd.DataFrame(rows)
 
 
@@ -207,6 +241,20 @@ def export_for_app(chamber, races, seats):
         ROOT / f"c_forecast_{chamber}_seats_2026.csv", index=False)
 
 
+def export_backtest(chamber, races, seats):
+    """Write the backtest where the Dash app reads it: c_backtest_<chamber>_races.csv
+    (one row per race and year) and c_backtest_<chamber>_seats.csv (probability of
+    each Democratic seat total by year, with the actual total and the seats
+    needed for control)."""
+    races.to_csv(ROOT / f"c_backtest_{chamber}_races.csv", index=False)
+    rows = []
+    for year, (sims, actual, need) in seats.items():
+        dist = pd.Series(sims).value_counts(normalize=True).sort_index()
+        rows.append(pd.DataFrame({"year": year, "seats": dist.index, "prob": dist.values,
+                                  "actual": actual, "need": need}))
+    pd.concat(rows).to_csv(ROOT / f"c_backtest_{chamber}_seats.csv", index=False)
+
+
 def fit(train, intercept=True):
     """OLS of dem2 - 0.5 on the House vote, lean and inc. The error splits into
     a year part (the year's mean residual) and a race part."""
@@ -224,10 +272,10 @@ def fit(train, intercept=True):
     return dict(c=c, k=k, b_lean=b_lean, b_inc=b_inc, sd=race_sd, year_sd=year_sd)
 
 
-def nat_sd(m):
+def nat_sd(m, year):
     """National error: the year's own deviation, plus the generic ballot's miss on
     the House vote scaled by k, in quadrature."""
-    return float(np.sqrt(m["year_sd"] ** 2 + (m["k"] ** 2) * np.var(GB_MISSES)))
+    return float(np.sqrt(m["year_sd"] ** 2 + (m["k"] ** 2) * gb_var(year)))
 
 
 def mean_pred(test, m, house):
@@ -237,12 +285,12 @@ def mean_pred(test, m, house):
 def gb_house(year, shift):
     """Generic ballot as a stand-in for the House vote, optionally shifted by
     its average historical miss."""
-    return GENERIC_BALLOT[year] - 0.5 + (np.mean(GB_MISSES) if shift else 0.0)
+    return GENERIC_BALLOT[year] - 0.5 + (gb_bias(year) if shift else 0.0)
 
 
 def simulate(f, m, house, n):
-    """Democratic wins per race, (n, races) booleans."""
-    nat = rng.normal(0, nat_sd(m), n)[:, None]
+    """Democratic wins per race in 2026, (n, races) booleans."""
+    nat = rng.normal(0, nat_sd(m, 2026), n)[:, None]
     race = rng.normal(0, m["sd"], (n, len(f)))
     return (mean_pred(f, m, house).to_numpy() + nat + race) > 0.5
 
@@ -257,14 +305,14 @@ def main():
 
     # Backtest: each spec's probabilities, averaged
     out = []
-    for year in (2010, 2014, 2018, 2022):
+    for year in BACKTEST:
         test = usable[usable.year == year].copy()
         preds, probs = [], []
         for window, intercept, shift in SPECS:
             m = fit(usable[(usable.year < year) & (usable.year >= year - window)], intercept)
             mu = mean_pred(test, m, gb_house(year, shift))
             preds.append(mu)
-            probs.append(norm.cdf((mu - 0.5) / np.sqrt(m["sd"] ** 2 + nat_sd(m) ** 2)))
+            probs.append(norm.cdf((mu - 0.5) / np.sqrt(m["sd"] ** 2 + nat_sd(m, year) ** 2)))
         test["pred"], test["p_dem"] = np.mean(preds, axis=0), np.mean(probs, axis=0)
         out.append(test)
         n, won = len(test), test.dem2 > 0.5
@@ -295,7 +343,7 @@ def main():
         wins.append(w)
         preds.append(mean_pred(f, m, gb_house(2026, shift)))
         specs.append(dict(window=window, intercept=intercept, gb_shift=shift, k=m["k"], c=m["c"],
-                          b_lean=m["b_lean"], b_inc=m["b_inc"], race_sd=m["sd"], nat_sd=nat_sd(m),
+                          b_lean=m["b_lean"], b_inc=m["b_inc"], race_sd=m["sd"], nat_sd=nat_sd(m, 2026),
                           median_seats=np.median(seats), p_51=(seats >= 51).mean()))
     w = np.vstack(wins)
     seats = D_NOT_UP + w[:, ~ind].sum(axis=1)

@@ -1,4 +1,4 @@
-"""House forecast: backtest on the 2010-2022 midterms, then forecast 2026.
+"""House forecast: backtest on the 2010-2024 elections, then forecast 2026.
 
 Same shape as senate_model.py, per district:
     dem2 - 0.5 = c + house + b_lean * lean + b_inc * inc + error
@@ -29,7 +29,8 @@ from scipy.stats import norm
 
 sys.path.insert(0, str(Path(__file__).parent))
 from senate_model import (  # noqa: E402
-    GB_MISSES, GENERIC_BALLOT, export_for_app, house_vote, name_tokens, same_person,
+    BACKTEST, GENERIC_BALLOT, export_backtest, export_for_app, gb_bias, gb_var, house_vote,
+    name_tokens, same_person,
 )
 
 DATA = Path(__file__).parent / "data"
@@ -60,6 +61,7 @@ def house_races():
         contested = (dem > 0 and rep > 0 and top2.party.nunique() == 2
                      and (third if pd.notna(third) else 0) <= 0.15)
         w = winners[(winners.year == year) & (winners.state_po == st) & (winners.district == dist)]
+        lead = {p: d.loc[d.party == p].nlargest(1, "votes").candidate for p in ("DEM", "REP")}
         prior = prior_by.get((year - 2, st))
         inc = 0
         if prior is not None:
@@ -70,12 +72,14 @@ def house_races():
                     inc += sign
         rows.append({"year": year, "state_po": st, "district": dist, "contested": contested,
                      "dem2": dem / (dem + rep) if dem + rep else np.nan, "inc": inc,
-                     "dem_won": bool((w.party == "DEM").any())})
+                     "dem_won": bool((w.party == "DEM").any()),
+                     "dem_cand": lead["DEM"].iloc[0] if len(lead["DEM"]) else "",
+                     "rep_cand": lead["REP"].iloc[0] if len(lead["REP"]) else ""})
     return pd.DataFrame(rows)
 
 
-def fit(train, intercept=True):
-    """OLS of dem2 - 0.5 - house on lean and inc (plus c)."""
+def fit(train, year, intercept=True):
+    """OLS of dem2 - 0.5 - house on lean and inc (plus c), to forecast year."""
     cols = [train.lean, train.inc]
     if intercept:
         cols.insert(0, np.ones(len(train)))
@@ -88,7 +92,7 @@ def fit(train, intercept=True):
     year_sd = resid.groupby(train.year).mean().std(ddof=1)
     c, b_lean, b_inc = beta if intercept else (0.0, *beta)
     return {"c": c, "b_lean": b_lean, "b_inc": b_inc, "sd": race_sd,
-            "nat_sd": float(np.sqrt(year_sd**2 + np.var(GB_MISSES)))}
+            "nat_sd": float(np.sqrt(year_sd**2 + gb_var(year)))}
 
 
 def mean_pred(df, m, house):
@@ -96,7 +100,7 @@ def mean_pred(df, m, house):
 
 
 def gb_house(year, shift):
-    return GENERIC_BALLOT[year] - 0.5 + (np.mean(GB_MISSES) if shift else 0.0)
+    return GENERIC_BALLOT[year] - 0.5 + (gb_bias(year) if shift else 0.0)
 
 
 def main():
@@ -109,12 +113,12 @@ def main():
           {y: f"{(usable.year == y).sum()}/{(races.year == y).sum()}" for y in sorted(races.year.unique())
            if y >= 2006})
 
-    out = []
-    for year in (2010, 2014, 2018, 2022):
+    out, seats_by_year = [], {}
+    for year in BACKTEST:
         test = usable[usable.year == year].copy()
         preds, probs, seat_draws = [], [], []
         for intercept, shift in SPECS:
-            m = fit(usable[(usable.year < year) & (usable.year >= 2006)], intercept)
+            m = fit(usable[(usable.year < year) & (usable.year >= 2006)], year, intercept)
             mu = mean_pred(test, m, gb_house(year, shift))
             preds.append(mu)
             probs.append(norm.cdf((mu - 0.5) / np.sqrt(m["sd"] ** 2 + m["nat_sd"] ** 2)))
@@ -125,6 +129,7 @@ def main():
         fixed = races[(races.year == year) & ~races.index.isin(test.index)]
         seats = np.concatenate(seat_draws) + fixed.dem_won.sum()
         actual = races[races.year == year].dem_won.sum()
+        seats_by_year[year] = (seats, actual, MAJORITY)
         won = test.dem2 > 0.5
         print(f"\n{year}: {len(test)} contested, MAE {np.abs(test.pred - test.dem2).mean():.3f}, "
               f"mean error {(test.pred - test.dem2).mean():+.3f}, called {((test.p_dem > 0.5) == won).sum()}"
@@ -133,6 +138,8 @@ def main():
               f"{np.percentile(seats, 90):.0f}, actual {actual}; P(D majority) {(seats >= MAJORITY).mean():.2f}")
     bt = pd.concat(out)
     bt.to_csv(DATA / "house_backtest.csv", index=False)
+    export_backtest("house", bt[["year", "state_po", "district", "dem_cand", "rep_cand", "inc", "lean",
+                                 "pred", "p_dem", "dem2"]], seats_by_year)
     won = bt.dem2 > 0.5
     print(f"\nall backtests: {len(bt)} races, called {((bt.p_dem > 0.5) == won).sum()}, "
           f"Brier {((bt.p_dem - won) ** 2).mean():.3f}")
@@ -149,7 +156,7 @@ def main():
     g = f[open_race]
     wins, preds, specs = [], [], []
     for intercept, shift in SPECS:
-        m = fit(usable[usable.year >= 2006], intercept)
+        m = fit(usable[usable.year >= 2006], 2026, intercept)
         mu = mean_pred(g, m, gb_house(2026, shift)).to_numpy()
         nat = rng.normal(0, m["nat_sd"], N_SIMS)[:, None]
         w = (mu + nat + rng.normal(0, m["sd"], (N_SIMS, len(g)))) > 0.5

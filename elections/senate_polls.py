@@ -12,6 +12,8 @@ fundamentals forecast and its error.
 Historical polls: FiveThirtyEight's pollster-ratings raw_polls.csv (1998-2022),
 saved in raw/polls/. Generic ballot for each year comes from the same file
 (House-G-US polls), so every year's national input is measured the same way.
+The file stops at 2022, so 2024 takes its polls from Wikipedia race pages (as
+2026 does) and its generic ballot from senate_model's RCP table.
 """
 
 import re
@@ -28,7 +30,7 @@ import senate_model as sm  # noqa: E402
 DATA, RAW = sm.DATA, Path(__file__).parent / "raw" / "polls"
 RAW_POLLS = "https://raw.githubusercontent.com/fivethirtyeight/data/master/pollster-ratings/raw_polls.csv"
 DAYS = (6, 30)  # we're 6 days out; the window a forecast at that point would see
-BACKTEST = (2010, 2014, 2018, 2022)
+BACKTEST = sm.BACKTEST
 MIN_TRAIN_YEAR = 1998
 
 
@@ -92,7 +94,7 @@ def senate_poll_averages(p):
     return pd.DataFrame(rows)
 
 
-ELECTION_DAY_2026 = pd.Timestamp("2026-11-03")
+ELECTION_DAY = {2024: pd.Timestamp("2024-11-05"), 2026: pd.Timestamp("2026-11-03")}
 WIKI_API = "https://en.wikipedia.org/w/api.php"
 UA = {"User-Agent": "census-research/0.1 (personal research script)"}
 
@@ -102,16 +104,16 @@ def surname(label):
     return sm.name_tokens(re.sub(r"\(.*?\)", "", label))[-1]
 
 
-def wiki_page(st, special):
-    """A 2026 Senate race's Wikipedia page, saved under raw/polls/wiki2026/.
+def wiki_page(st, special, year=2026):
+    """A Senate race's Wikipedia page, saved under raw/polls/wiki<year>/.
     Wikipedia rate-limits the API, so wait out any 429 and pause between pages."""
-    path = RAW / "wiki2026" / f"{st}{'_special' if special else ''}.html"
+    path = RAW / f"wiki{year}" / f"{st}{'_special' if special else ''}.html"
     if not path.exists():
         import time
         import requests
         names = pd.read_csv(Path(__file__).parent / "raw" / "1976-2024-senate-state.csv")
         state = names.loc[names.state_po == st, "state"].iloc[0].title()
-        title = f"2026 United States Senate {'special ' if special else ''}election in {state}"
+        title = f"{year} United States Senate {'special ' if special else ''}election in {state}"
         params = {"action": "parse", "page": title, "prop": "text", "format": "json",
                   "formatversion": 2, "redirects": 1}
         for _ in range(5):
@@ -143,15 +145,15 @@ def pct(v):
     return float(m.group(1)) if m else np.nan
 
 
-def polls_2026(st, special, dem_label, rep_label):
-    """Head-to-head general-election polls for one 2026 race: the table whose
+def polls_wiki(st, special, dem_label, rep_label, year=2026):
+    """Head-to-head general-election polls for one race: the table whose
     columns include both nominees. Returns pollster, end date, D-side and R
     shares, likely-voter flag and partisan flag, one row per poll question."""
     import io
     dem, rep = surname(dem_label), surname(rep_label)
     rows = []
     # Some pages carry malformed spans like rowspan="2"" that crash read_html
-    html = re.sub(r'\b(rowspan|colspan)=["\']?(\d+)[^\s>]*', r'\1="\2"', wiki_page(st, special))
+    html = re.sub(r'\b(rowspan|colspan)=["\']?(\d+)[^\s>]*', r'\1="\2"', wiki_page(st, special, year))
     for t in pd.read_html(io.StringIO(html)):
         cols = [" ".join(map(str, c)) if isinstance(c, tuple) else str(c) for c in t.columns]
         if not any("Poll source" in c for c in cols):
@@ -170,19 +172,19 @@ def polls_2026(st, special, dem_label, rep_label):
                 continue
             source = re.sub(r"\[.*?\]", "", str(r[source_col])).strip()
             rows.append({"state_po": st, "special": special, "pollster": source,
-                         "end": poll_end_date(r[date_col]), "dem": d, "rep": rp,
+                         "end": poll_end_date(r[date_col], year), "dem": d, "rep": rp,
                          "lv": "(LV)" in str(r[size_col]) if size_col else False,
                          "partisan": bool(re.search(r"\((?:D|R)\)", source))})
     return pd.DataFrame(rows, columns=["state_po", "special", "pollster", "end", "dem", "rep",
                                        "lv", "partisan"])
 
 
-def poll_average_2026(polls):
+def poll_average_wiki(polls, year=2026):
     """Same rule as the history: nonpartisan polls 6-30 days out (else 6-60),
     one per pollster and end date, likely-voter version preferred."""
     if polls.empty:
         return np.nan, 0
-    p = polls.assign(days=(ELECTION_DAY_2026 - polls.end).dt.days, d2=polls.dem / (polls.dem + polls.rep))
+    p = polls.assign(days=(ELECTION_DAY[year] - polls.end).dt.days, d2=polls.dem / (polls.dem + polls.rep))
     p = p[~p.partisan].sort_values("lv", ascending=False).drop_duplicates(["pollster", "end"])
     near = p[p.days.between(*DAYS)]
     use = near if len(near) else p[p.days.between(DAYS[0], 60)]
@@ -194,9 +196,9 @@ def fundamentals(usable, test, year, gb_dem2):
     preds, sds = [], []
     for window, intercept, shift in sm.SPECS:
         m = sm.fit(usable[(usable.year < year) & (usable.year >= year - window)], intercept)
-        house = gb_dem2 - 0.5 + (np.mean(sm.GB_MISSES) if shift else 0.0)
+        house = gb_dem2 - 0.5 + (sm.gb_bias(year) if shift else 0.0)
         preds.append(sm.mean_pred(test, m, house))
-        sds.append(np.sqrt(m["sd"] ** 2 + sm.nat_sd(m) ** 2))
+        sds.append(np.sqrt(m["sd"] ** 2 + sm.nat_sd(m, year) ** 2))
     return np.mean(preds, axis=0), float(np.mean(sds))
 
 
@@ -236,18 +238,28 @@ def blend(df, b):
 FUND_YEAR_SD = 0.015  # national part of the fundamentals error (senate_model nat_sd)
 
 
+def wiki_poll_averages(races, year):
+    """Poll average per race from Wikipedia, for years past FiveThirtyEight's file."""
+    polls = [polls_wiki(r.state_po, r.special, r.dem_cand, r.rep_cand, year) for r in races.itertuples()]
+    pd.concat(polls).to_csv(DATA / f"senate_polls_{year}.csv", index=False)
+    avg = [poll_average_wiki(x, year) for x in polls]
+    return pd.DataFrame({"year": year, "state_po": races.state_po.values, "special": races.special.values,
+                         "poll": [a for a, _ in avg], "n_polls": [n for _, n in avg]})
+
+
 def history(p, usable):
-    """Every Senate race 1998-2022 with its out-of-sample fundamentals forecast and
+    """Every Senate race 1998-2024 with its out-of-sample fundamentals forecast and
     poll average."""
     gb = generic_ballot_history(p)
     hist = []
-    for year in sorted(gb.index):
-        if year % 2 or year < MIN_TRAIN_YEAR:
-            continue
+    for year in range(MIN_TRAIN_YEAR, 2026, 2):
         test = usable[usable.year == year].copy()
-        test["fund"], test["fund_sd"] = fundamentals(usable, test, year, gb[year])
+        test["fund"], test["fund_sd"] = fundamentals(usable, test, year, gb.get(year, sm.GENERIC_BALLOT.get(year)))
         hist.append(test)
-    return pd.concat(hist).merge(senate_poll_averages(p), how="left")
+    averages = pd.concat([senate_poll_averages(p), wiki_poll_averages(usable[usable.year == 2024], 2024)])
+    hist = pd.concat(hist).merge(averages, how="left")
+    hist.loc[hist.n_polls == 0, "poll"] = np.nan
+    return hist
 
 
 def main():
@@ -258,9 +270,9 @@ def main():
     races["house"] = races.year.map(sm.house_vote())
     usable = races[~races.excluded & races.lean.notna() & (races.year >= 1982)]
     hist = history(p, usable)
-    print(f"races 1998-2022: {len(hist)}, with polls: {hist.poll.notna().sum()}")
+    print(f"races 1998-2024: {len(hist)}, with polls: {hist.poll.notna().sum()}")
 
-    out = []
+    out, seats_by_year = [], {}
     for year in BACKTEST:
         b = fit_blend(hist[(hist.year < year) & hist.poll.notna()])
         t = hist[hist.year == year].copy()
@@ -268,6 +280,12 @@ def main():
         t["blend"], race_sd, year_sd = blend(t, b)
         t["p_blend"] = norm.cdf((t.blend - 0.5) / np.hypot(race_sd, year_sd))
         t["p_fund"] = norm.cdf((t.fund - 0.5) / t.fund_sd)
+        # Seats: races not modeled (excluded or not up) keep their actual result
+        z = bt_rng.normal(0, 1, sm.N_SIMS)[:, None]
+        eps = bt_rng.normal(0, 1, (sm.N_SIMS, len(t)))
+        sims = (t.blend.to_numpy() + z * year_sd.to_numpy() + eps * race_sd.to_numpy()) > 0.5
+        seats = sm.D_CAUCUS[year] - t.dem_won.sum() + sims.sum(axis=1)
+        seats_by_year[year] = (seats, sm.D_CAUCUS[year], 50 if year in sm.DEM_VP else 51)
         won = t.dem2 > 0.5
         print(f"\n{year}: " + ", ".join(f"{k} a {v['a']:.2f} (n {v['n']})" for k, v in b.items())
               + f"; {polled.sum()}/{len(t)} races polled")
@@ -275,9 +293,16 @@ def main():
             e = (t[col] - t.dem2)[polled]
             print(f"  {name:12s} polled-race MAE {e.abs().mean():.3f}, mean err {e.mean():+.3f}; "
                   f"called {((t[pcol] > 0.5) == won).sum()}/{len(t)}, Brier {((t[pcol] - won) ** 2).mean():.3f}")
+        need = seats_by_year[year][2]
+        print(f"  D caucus seats: median {np.median(seats):.0f}, 80% interval {np.percentile(seats, 10):.0f}-"
+              f"{np.percentile(seats, 90):.0f}, actual {sm.D_CAUCUS[year]}; P(D control, {need}+) "
+              f"{(seats >= need).mean():.2f}")
         out.append(t)
     bt = pd.concat(out)
     bt.to_csv(DATA / "senate_polls_backtest.csv", index=False)
+    sm.export_backtest("senate", bt.rename(columns={"blend": "pred", "p_blend": "p_dem"})[
+        ["year", "state_po", "special", "dem_cand", "rep_cand", "inc", "lean", "fund", "poll", "n_polls",
+         "pred", "p_fund", "p_dem", "dem2"]], seats_by_year)
     won = bt.dem2 > 0.5
     for name, pcol in (("fundamentals", "p_fund"), ("blend", "p_blend")):
         print(f"all backtests {name}: called {((bt[pcol] > 0.5) == won).sum()}/{len(bt)}, "
@@ -287,13 +312,15 @@ def main():
                                               dem_won=("dem2", lambda x: (x > 0.5).mean())).round(2))
 
     # 2026: fundamentals with the current generic ballot, blended with current polls
-    b = fit_blend(hist[hist.poll.notna()])
+    # Fit on 1998-2022, as published on FORECAST_DATE: 2024 joined the history
+    # later, for the backtest, and shouldn't move the forecast being scored.
+    b = fit_blend(hist[(hist.year <= 2022) & hist.poll.notna()])
     f = pd.DataFrame(sm.RACES_2026, columns=["state_po", "special", "inc", "holder", "dem_side", "rep", "ind"])
     f["lean"] = [sm.lean_before(lean, 2026, s) for s in f.state_po]
     f["fund"], f["fund_sd"] = fundamentals(usable, f, 2026, sm.GENERIC_BALLOT[2026])
-    polls = [polls_2026(r.state_po, r.special, r.dem_side, r.rep) for r in f.itertuples()]
+    polls = [polls_wiki(r.state_po, r.special, r.dem_side, r.rep) for r in f.itertuples()]
     pd.concat(polls).to_csv(DATA / "senate_polls_2026.csv", index=False)
-    f["poll"], f["n_polls"] = zip(*(poll_average_2026(x) for x in polls))
+    f["poll"], f["n_polls"] = zip(*(poll_average_wiki(x) for x in polls))
     f.loc[f.n_polls == 0, "poll"] = np.nan
     f["pred"], race_sd, year_sd = blend(f, b)
 
@@ -320,6 +347,7 @@ def main():
 
 
 rng = np.random.default_rng(0)
+bt_rng = np.random.default_rng(1)  # backtest draws, kept apart so 2026's don't shift
 
 if __name__ == "__main__":
     main()

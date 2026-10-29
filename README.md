@@ -38,7 +38,7 @@ pass `--force` to re-download.
 | 10 | `elections/fetch_elections.py` | MIT Election Lab House, Senate and President returns, 1976–2024, cleaned into `elections/data/`. The House file sits behind a Dataverse guestbook: download `1976-2024-house.tab` by hand from [doi:10.7910/DVN/IG0UN2](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/IG0UN2) into `elections/raw/` first |
 | 11 | `elections/fetch_house_inputs.py` | District presidential leans for 2006–2026 lines (The Downballot) and the 2026 House candidate list (Wikipedia) |
 | — | `elections/mrp.py` | Backtest only, not part of the forecast: tests whether a demographic (MRP) estimate from the CES survey improves the House model beyond presidential lean. It doesn't (2014–2022). Needs the CES cumulative file (CC0, [doi:10.7910/DVN/II2DB6](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/II2DB6)) in `elections/raw/ces/` and `census_api_key` |
-| 12 | `elections/senate_polls.py`, `elections/house_model.py` | `c_forecast_{senate,house}_2026.csv` and `c_forecast_{senate,house}_seats_2026.csv` (backtested 2026 forecasts, for the Elections tab; needs `scipy` and `lxml`). The Senate forecast blends `senate_model.py`'s fundamentals with state polls (FiveThirtyEight's archive for 1998–2022, Wikipedia race pages for 2026). The 2026 Senate race list and the generic-ballot average are set in `senate_model.py` |
+| 12 | `elections/senate_polls.py`, `elections/house_model.py` | `c_forecast_{senate,house}_2026.csv` and `c_forecast_{senate,house}_seats_2026.csv` (2026 forecasts), plus `c_backtest_{senate,house}_{races,seats}.csv` (every election 2010–2024 re-forecast with only earlier data), for the Elections tab; needs `scipy` and `lxml`. The Senate forecast blends `senate_model.py`'s fundamentals with state polls (FiveThirtyEight's archive for 1998–2022, Wikipedia race pages for 2024 and 2026). The 2026 Senate race list and the generic-ballot average are set in `senate_model.py` |
 
 Data files are gitignored — they total ~1.1 GB.
 
@@ -84,6 +84,8 @@ gsutil -m cp \
   c_housing_state.csv c_housing_metro.csv \
   c_forecast_senate_2026.csv c_forecast_senate_seats_2026.csv \
   c_forecast_house_2026.csv c_forecast_house_seats_2026.csv \
+  c_backtest_senate_races.csv c_backtest_senate_seats.csv \
+  c_backtest_house_races.csv c_backtest_house_seats.csv \
   zcta_to_dma.csv \
   state_geom.* county_geom.* zcta_geom.* congressional_district_geom.* \
   gs://kylezengo-census-data/
@@ -142,10 +144,11 @@ slow (~30s) first request after idle.
   congressional district, https://www.the-downballot.com/p/the-downballots-calculations-of-presidential
 - **c_forecast_*.csv** (2026 candidates) — Wikipedia, "2026 United States House of
   Representatives elections" and "2026 United States Senate elections" (CC BY-SA).
-  Generic ballot: RealClearPolling average, read 2026-10-28.
+  Generic ballot: RealClearPolling average, read 2026-10-28; 2012–2024 finals from
+  Wikipedia's House election pages and FiveThirtyEight.
 - **c_forecast_senate*.csv** (polls) — FiveThirtyEight pollster-ratings `raw_polls.csv`,
   https://github.com/fivethirtyeight/data/tree/master/pollster-ratings (1998–2022), and the
-  polling tables on Wikipedia's 2026 Senate race pages (CC BY-SA), read 2026-10-28.
+  polling tables on Wikipedia's 2024 and 2026 Senate race pages (CC BY-SA), read 2026-10-28.
 
 ## Notes
 

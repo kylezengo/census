@@ -27,9 +27,12 @@ from config import (
     CENSUS_2000_YEAR,
     CPI_COLS,
     DEFAULT_VAR,
+    BACKTEST_VIEWS,
+    BACKTEST_YEARS,
     DEM_COLOR,
     ELECTION_MAJORITY,
     ELECTION_VIEWS,
+    MISS_COLOR,
     REP_COLOR,
     US_LABEL,
     FEMALE_COLOR,
@@ -177,6 +180,9 @@ HOUSING_STATES = [US_LABEL] + sorted(
 # Elections: 2026 forecasts, one row per race and the seat-count distribution.
 forecast_races = {c: pd.read_csv(f"c_forecast_{c}_2026.csv") for c in ELECTION_MAJORITY}
 forecast_seats = {c: pd.read_csv(f"c_forecast_{c}_seats_2026.csv") for c in ELECTION_MAJORITY}
+# Backtest 2010-2024: per race (forecast and actual) and per-year seat distributions.
+backtest_races = {c: pd.read_csv(f"c_backtest_{c}_races.csv") for c in ELECTION_MAJORITY}
+backtest_seats = {c: pd.read_csv(f"c_backtest_{c}_seats.csv") for c in ELECTION_MAJORITY}
 c_county_state = _read_acs(f"c_county_state_{ACS_YEAR}.csv", dtype={"GEOID": object})
 c_zcta_dma = _read_acs(f"c_zcta_dma_{ACS_YEAR}.csv", dtype={"zcta": object})
 if DEV_MODE:
@@ -1585,18 +1591,72 @@ app.layout = html.Div(
                             [
                                 html.Div(
                                     [
-                                        html.Label("2026 forecast", style=_bold),
                                         dcc.RadioItems(
-                                            id="election-view",
+                                            id="election-mode",
                                             options=[
-                                                {"label": f"  {v}", "value": k}
-                                                for k, v in ELECTION_VIEWS.items()
+                                                {"label": "  2026 forecast", "value": "forecast"},
+                                                {"label": "  Backtest, 2010–2024", "value": "backtest"},
                                             ],
-                                            value="senate_seats",
-                                            labelStyle={
-                                                "display": "block",
-                                                "marginTop": "4px",
-                                            },
+                                            value="forecast",
+                                            labelStyle={"display": "block", "marginTop": "4px"},
+                                            style={"marginBottom": "12px"},
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label("View", style=_bold),
+                                                dcc.RadioItems(
+                                                    id="election-view",
+                                                    options=[
+                                                        {"label": f"  {v}", "value": k}
+                                                        for k, v in ELECTION_VIEWS.items()
+                                                    ],
+                                                    value="senate_seats",
+                                                    labelStyle={
+                                                        "display": "block",
+                                                        "marginTop": "4px",
+                                                    },
+                                                ),
+                                            ],
+                                            id="election-forecast-controls",
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Label("Chamber", style=_bold),
+                                                dcc.RadioItems(
+                                                    id="backtest-chamber",
+                                                    options=[
+                                                        {"label": "  Senate", "value": "senate"},
+                                                        {"label": "  House", "value": "house"},
+                                                    ],
+                                                    value="senate",
+                                                    inline=True,
+                                                    labelStyle={"marginRight": "12px"},
+                                                ),
+                                                html.Label("View", style=_bold_mt),
+                                                dcc.RadioItems(
+                                                    id="backtest-view",
+                                                    options=[
+                                                        {"label": f"  {v}", "value": k}
+                                                        for k, v in BACKTEST_VIEWS.items()
+                                                    ],
+                                                    value="seats",
+                                                    labelStyle={
+                                                        "display": "block",
+                                                        "marginTop": "4px",
+                                                    },
+                                                ),
+                                                html.Label("Election", style=_bold_mt),
+                                                dcc.Dropdown(
+                                                    id="backtest-year",
+                                                    options=[{"label": "All years", "value": "all"}]
+                                                    + [{"label": str(y), "value": y}
+                                                       for y in reversed(BACKTEST_YEARS)],
+                                                    value="all",
+                                                    clearable=False,
+                                                ),
+                                            ],
+                                            id="election-backtest-controls",
+                                            style={"display": "none"},
                                         ),
                                         html.Div(
                                             id="election-summary",
@@ -2739,25 +2799,37 @@ _ELECTION_NOTES = {
 }
 
 
-def _seat_summary(chamber):
-    seats = forecast_seats[chamber]
-    need = ELECTION_MAJORITY[chamber]
+def _seat_summary(seats, need):
+    """Chance of reaching need, and the median and 80% range of a seat distribution."""
+    seats = seats.sort_values("seats")
     cdf = seats["prob"].cumsum()
     lo, med, hi = (int(seats["seats"][cdf >= q].iloc[0]) for q in (0.1, 0.5, 0.9))
     p = seats.loc[seats["seats"] >= need, "prob"].sum()
     return p, med, lo, hi
 
 
+_SHOW, _HIDE = {"display": "block"}, {"display": "none"}
+
+
 @app.callback(
     Output("election-chart", "figure"),
     Output("election-summary", "children"),
     Output("election-note", "children"),
+    Output("election-forecast-controls", "style"),
+    Output("election-backtest-controls", "style"),
+    Input("election-mode", "value"),
     Input("election-view", "value"),
+    Input("backtest-chamber", "value"),
+    Input("backtest-view", "value"),
+    Input("backtest-year", "value"),
 )
-def update_election_chart(view):
+def update_election_chart(mode, view, bt_chamber, bt_view, bt_year):
+    if mode == "backtest":
+        fig, summary = _backtest_fig(bt_chamber, bt_view, bt_year)
+        return fig, summary, _BACKTEST_NOTES[bt_chamber], _HIDE, _SHOW
     chamber, kind = view.split("_")
     need = ELECTION_MAJORITY[chamber]
-    p, med, lo, hi = _seat_summary(chamber)
+    p, med, lo, hi = _seat_summary(forecast_seats[chamber], need)
     meta = forecast_seats[chamber].iloc[0]
     gb = 2 * meta["generic_ballot_dem2"] - 1
     summary = [
@@ -2769,7 +2841,7 @@ def update_election_chart(view):
         ),
     ]
     fig = _election_seats_fig(chamber) if kind == "seats" else _election_races_fig(chamber)
-    return fig, summary, _ELECTION_NOTES[chamber]
+    return fig, summary, _ELECTION_NOTES[chamber], _SHOW, _HIDE
 
 
 def _election_seats_fig(chamber):
@@ -2834,6 +2906,299 @@ def _election_races_fig(chamber):
                "range": [0, 1]},
         yaxis={"title": None, "tickfont": {"size": 10}},
     )
+    return fig
+
+
+_BACKTEST_NOTES = {
+    "senate": (
+        "Each election re-forecast with today's model, using only results from "
+        "earlier years, that year's final generic-ballot average (RealClearPolitics), "
+        "and nonpartisan polls from the last 6–30 days (FiveThirtyEight through 2022, "
+        "Wikipedia for 2024). It is not a forecast published at the time. The model "
+        "was built while looking at the 2010–2022 midterms; the presidential years "
+        "were never used in designing it. Races are scored on the November vote, so "
+        "Georgia 2020 counts as a Republican lead though Democrats won both January "
+        "runoffs; seat totals use the final result. Control takes 50 seats under a "
+        "Democratic Vice President, 51 otherwise. Races with no Democrat or no "
+        "Republican, or a third candidate above 15%, aren't forecast and keep their "
+        "actual result in the seat totals."
+    ),
+    "house": (
+        "Each election re-forecast with today's model, using only results from "
+        "earlier years and that year's final generic-ballot average "
+        "(RealClearPolitics). It is not a forecast published at the time. The model "
+        "was built while looking at the 2010–2022 midterms; the presidential years "
+        "were never used in designing it. House races have no polls in the model. "
+        "Races with no Democrat or no Republican, or a third candidate above 15%, "
+        "aren't forecast and keep their actual result in the seat totals. District "
+        "lines changed over the period, so the map counts misses by state."
+    ),
+}
+
+
+def _race_label(df, chamber):
+    if chamber == "house":
+        return df["state_po"] + "-" + df["district"].astype(str).str.zfill(2)
+    return df["state_po"] + np.where(df["special"], " (special)", "")
+
+
+def _backtest_data(chamber, year):
+    """The chosen year's races (all years if year is 'all'), with labels and the call."""
+    df = backtest_races[chamber]
+    if year != "all":
+        df = df[df["year"] == year]
+    df = df.copy()
+    df["race"] = _race_label(df, chamber)
+    df["dem_won"] = df["dem2"] > 0.5
+    df["called"] = (df["p_dem"] > 0.5) == df["dem_won"]
+    return df
+
+
+def _brier(p, won):
+    return float(((p - won) ** 2).mean())
+
+
+def _backtest_fig(chamber, view, year):
+    df = _backtest_data(chamber, year)
+    if view == "seats":
+        fig = _backtest_seats_fig(chamber, year)
+    elif view == "races":
+        fig = _backtest_races_fig(df, chamber)
+    elif view == "calibration":
+        fig = _backtest_calibration_fig(df, chamber)
+    else:
+        fig = _backtest_map_fig(df, chamber, year)
+    return fig, _backtest_summary(df, chamber, year)
+
+
+def _backtest_summary(df, chamber, year):
+    seats = backtest_seats[chamber]
+    n = len(df)
+    lines = [
+        html.Div(
+            f"Races called: {df['called'].sum()} of {n} "
+            f"(Brier {_brier(df['p_dem'], df['dem_won']):.3f})",
+            style=_bold,
+        )
+    ]
+    if chamber == "senate":
+        fund = (df["p_fund"] > 0.5) == df["dem_won"]
+        lines.append(html.Div(
+            f"Fundamentals alone, without polls: {fund.sum()} of {n} "
+            f"(Brier {_brier(df['p_fund'], df['dem_won']):.3f})"
+        ))
+    years = BACKTEST_YEARS if year == "all" else [year]
+    inside = control_right = 0
+    for y in years:
+        s = seats[seats["year"] == y]
+        actual, need = int(s["actual"].iloc[0]), int(s["need"].iloc[0])
+        p, med, lo, hi = _seat_summary(s, need)
+        inside += lo <= actual <= hi
+        control_right += (p > 0.5) == (actual >= need)
+        if year != "all":
+            won = "Democrats" if actual >= need else "Republicans"
+            lines += [
+                html.Div(f"Democratic seats: forecast {med} (80% range {lo}–{hi}), "
+                         f"actual {actual}", style={"marginTop": "8px"}),
+                html.Div(f"Chance of Democratic control: {p:.0%}; {won} won it "
+                         f"({need} seats needed)"),
+            ]
+    if year == "all":
+        lines += [
+            html.Div(f"Actual seats inside the 80% range: {inside} of {len(years)} elections",
+                     style={"marginTop": "8px"}),
+            html.Div(f"Control called right: {control_right} of {len(years)}"),
+        ]
+    return lines
+
+
+def _backtest_seats_fig(chamber, year):
+    seats = backtest_seats[chamber]
+    if year != "all":
+        s = seats[seats["year"] == year]
+        need, actual = int(s["need"].iloc[0]), int(s["actual"].iloc[0])
+        fig = go.Figure(
+            go.Bar(
+                x=s["seats"],
+                y=s["prob"],
+                marker_color=[DEM_COLOR if v >= need else REP_COLOR for v in s["seats"]],
+                hovertemplate="%{x} Democratic seats: %{y:.1%}<extra></extra>",
+            )
+        )
+        fig.add_vline(x=need - 0.5, line_dash="dash", line_color="#555",
+                      annotation_text=f"{need} for control", annotation_position="top left")
+        fig.add_vline(x=actual, line_color="#222", line_width=3,
+                      annotation_text=f"Actual: {actual}", annotation_position="top right")
+        fig.update_layout(
+            margin={"l": 40, "r": 20, "t": 30, "b": 40},
+            xaxis={"title": f"Democratic seats after {year} (simulated)"},
+            yaxis={"title": "Probability", "tickformat": ".0%"},
+            bargap=0.05,
+        )
+        return fig
+    rows = []
+    for y in BACKTEST_YEARS:
+        s = seats[seats["year"] == y]
+        need, actual = int(s["need"].iloc[0]), int(s["actual"].iloc[0])
+        p, med, lo, hi = _seat_summary(s, need)
+        rows.append({"year": y, "med": med, "lo": lo, "hi": hi, "actual": actual, "need": need,
+                     "p": p})
+    r = pd.DataFrame(rows)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=r["year"], y=r["need"], mode="markers", name="Seats for control",
+        marker={"symbol": "line-ew", "size": 28, "line": {"width": 2, "color": "#999"}},
+        hovertemplate="%{x}: %{y} seats for control<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=r["year"], y=r["med"], mode="markers", name="Forecast (median, 80% range)",
+        marker={"size": 10, "color": DEM_COLOR},
+        error_y={"type": "data", "symmetric": False, "array": r["hi"] - r["med"],
+                 "arrayminus": r["med"] - r["lo"], "color": DEM_COLOR, "thickness": 2},
+        customdata=np.column_stack([r["lo"], r["hi"], r["p"]]),
+        hovertemplate=("%{x}: forecast %{y} seats (80% range %{customdata[0]}–"
+                       "%{customdata[1]})<br>Chance of Democratic control: "
+                       "%{customdata[2]:.0%}<extra></extra>"),
+    ))
+    fig.add_trace(go.Scatter(
+        x=r["year"], y=r["actual"], mode="markers", name="Actual",
+        marker={"symbol": "x", "size": 11, "color": "#222"},
+        hovertemplate="%{x}: actual %{y} seats<extra></extra>",
+    ))
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 30, "b": 40},
+        xaxis={"title": None, "tickvals": BACKTEST_YEARS},
+        yaxis={"title": "Democratic seats"},
+        legend={"orientation": "h", "y": 1.05, "x": 0},
+    )
+    return fig
+
+
+def _backtest_hover(df, chamber):
+    """customdata and hovertemplate shared by the race-level backtest charts."""
+    extra = ""
+    cols = [df["year"], df["race"], df["dem_cand"].fillna("").str.title(),
+            df["rep_cand"].fillna("").str.title(), df["p_dem"], df["pred"], df["dem2"]]
+    if chamber == "senate":
+        polls = df["n_polls"].fillna(0).astype(int)
+        cols.append(np.where(
+            polls > 0,
+            "Poll average: " + (100 * df["poll"]).round(1).astype(str) + "% ("
+            + polls.astype(str) + np.where(polls == 1, " poll)", " polls)"),
+            "No recent nonpartisan polls",
+        ))
+        extra = "%{customdata[7]}<br>"
+    template = (
+        "<b>%{customdata[0]} %{customdata[1]}</b>: %{customdata[2]} (D) vs "
+        "%{customdata[3]} (R)<br>P(Democrat wins): %{customdata[4]:.0%}<br>"
+        "Forecast Democratic share: %{customdata[5]:.1%}<br>" + extra
+        + "Actual: %{customdata[6]:.1%}<extra></extra>"
+    )
+    return np.column_stack(cols), template
+
+
+def _backtest_races_fig(df, chamber):
+    fig = go.Figure()
+    for called, name, color in ((True, "Called right", "#999"), (False, "Missed", MISS_COLOR)):
+        d = df[df["called"] == called]
+        custom, template = _backtest_hover(d, chamber)
+        fig.add_trace(go.Scattergl(
+            x=d["pred"], y=d["dem2"], mode="markers", name=f"{name} ({len(d)})",
+            marker={"color": color, "size": 7 if chamber == "senate" else 5, "opacity": 0.8},
+            customdata=custom, hovertemplate=template,
+        ))
+    lo = min(df["pred"].min(), df["dem2"].min()) - 0.02
+    hi = max(df["pred"].max(), df["dem2"].max()) + 0.02
+    fig.add_shape(type="line", x0=lo, y0=lo, x1=hi, y1=hi, line={"color": "#555", "dash": "dot"})
+    fig.add_hline(y=0.5, line_color="#ccc")
+    fig.add_vline(x=0.5, line_color="#ccc")
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 30, "b": 40},
+        xaxis={"title": "Forecast Democratic two-party share", "tickformat": ".0%",
+               "range": [lo, hi]},
+        yaxis={"title": "Actual Democratic two-party share", "tickformat": ".0%",
+               "range": [lo, hi]},
+        legend={"orientation": "h", "y": 1.05, "x": 0},
+    )
+    return fig
+
+
+def _backtest_calibration_fig(df, chamber):
+    """Binned forecast probability vs how often Democrats won, with the 90% range
+    a perfectly calibrated forecast would land in given each bin's race count."""
+    bins = np.linspace(0, 1, 11)
+    series = [("p_dem", "With polls" if chamber == "senate" else "Forecast", DEM_COLOR)]
+    if chamber == "senate":
+        series.append(("p_fund", "Fundamentals only", "#999"))
+    fig = go.Figure()
+    fig.add_shape(type="line", x0=0, y0=0, x1=1, y1=1, line={"color": "#555", "dash": "dot"})
+    for col, name, color in series:
+        g = df.groupby(pd.cut(df[col], bins, include_lowest=True), observed=True).agg(
+            p=(col, "mean"), won=("dem_won", "mean"), n=(col, "size"))
+        se = 1.645 * np.sqrt(g["p"] * (1 - g["p"]) / g["n"])
+        fig.add_trace(go.Scatter(
+            x=g["p"], y=g["won"], mode="markers+lines", name=name,
+            marker={"size": 6 + 16 * np.sqrt(g["n"] / g["n"].max()), "color": color},
+            line={"color": color, "width": 1},
+            error_y={"type": "data", "array": se, "color": color, "thickness": 1},
+            customdata=g["n"],
+            hovertemplate=("Forecast %{x:.0%}: Democrats won %{y:.0%} of "
+                           "%{customdata} races<extra></extra>"),
+        ))
+    fig.update_layout(
+        margin={"l": 40, "r": 20, "t": 30, "b": 40},
+        xaxis={"title": "Forecast probability the Democrat wins (binned)", "tickformat": ".0%",
+               "range": [-0.02, 1.02]},
+        yaxis={"title": "Share of those races Democrats won", "tickformat": ".0%",
+               "range": [-0.05, 1.05]},
+        legend={"orientation": "h", "y": 1.05, "x": 0},
+    )
+    return fig
+
+
+def _backtest_map_fig(df, chamber, year):
+    if chamber == "senate" and year != "all":
+        # One election: each state's outcome, a miss outranking a second race
+        rank = {"Missed": 0, "Democrat won, called": 1, "Republican won, called": 2}
+        df = df.assign(outcome=np.where(~df["called"], "Missed", np.where(
+            df["dem_won"], "Democrat won, called", "Republican won, called")))
+        df["text"] = (df["race"] + ": " + df["dem_cand"].str.title() + " (D) "
+                      + (100 * df["dem2"]).round(1).astype(str) + "%, forecast "
+                      + (100 * df["pred"]).round(1).astype(str) + "%, P(D) "
+                      + (100 * df["p_dem"]).round(0).astype(int).astype(str) + "%")
+        st = df.groupby("state_po").agg(
+            outcome=("outcome", lambda x: min(x, key=rank.get)),
+            text=("text", "<br>".join)).reset_index()
+        fig = px.choropleth(
+            st, locations="state_po", locationmode="USA-states", scope="usa",
+            color="outcome", hover_name="state_po", custom_data=["text"],
+            category_orders={"outcome": list(rank)},
+            color_discrete_map={"Missed": MISS_COLOR, "Democrat won, called": "#92c5de",
+                                "Republican won, called": "#f4a582"},
+        )
+        fig.update_traces(hovertemplate="<b>%{hovertext}</b><br>%{customdata[0]}<extra></extra>")
+    else:
+        miss = df[~df["called"]]
+        miss_text = (miss["year"].astype(str) + " " + miss["race"] + ": forecast "
+                     + (100 * miss["p_dem"]).round(0).astype(int).astype(str) + "% D, "
+                     + np.where(miss["dem_won"], "Democrat", "Republican") + " won")
+        st = df.groupby("state_po").size().rename("races").to_frame()
+        st["misses"] = miss.groupby("state_po").size()
+        st["misses"] = st["misses"].fillna(0).astype(int)
+        st["text"] = miss_text.groupby(miss["state_po"]).agg("<br>".join)
+        st["text"] = st["text"].fillna("No misses")
+        st = st.reset_index()
+        fig = px.choropleth(
+            st, locations="state_po", locationmode="USA-states", scope="usa",
+            color="misses", hover_name="state_po", custom_data=["races", "text"],
+            color_continuous_scale="Oranges", range_color=[0, max(1, st["misses"].max())],
+        )
+        fig.update_traces(hovertemplate=("<b>%{hovertext}</b>: %{z} missed of "
+                                         "%{customdata[0]} races<br>%{customdata[1]}"
+                                         "<extra></extra>"))
+        fig.update_layout(coloraxis_colorbar={"title": "Misses"})
+    fig.update_layout(margin={"l": 0, "r": 0, "t": 30, "b": 0},
+                      legend={"orientation": "h", "y": 1.02, "x": 0, "title": None})
     return fig
 
 

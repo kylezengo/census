@@ -48,6 +48,11 @@ FILES = [
     "c_forecast_senate_seats_2026.csv",
     "c_forecast_house_2026.csv",
     "c_forecast_house_seats_2026.csv",
+    # Elections tab backtest, 2010-2024
+    "c_backtest_senate_races.csv",
+    "c_backtest_senate_seats.csv",
+    "c_backtest_house_races.csv",
+    "c_backtest_house_seats.csv",
     # Static mapping
     "zcta_to_dma.csv",
     # Shapefiles

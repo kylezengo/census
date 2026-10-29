@@ -457,6 +457,15 @@ ELECTION_VIEWS = {
 ELECTION_MAJORITY = {"senate": 51, "house": 218}
 DEM_COLOR = "#2166ac"
 REP_COLOR = "#b2182b"
+MISS_COLOR = "#e08214"
+# Backtest: each past election re-forecast with only what was known before it.
+BACKTEST_YEARS = list(range(2010, 2026, 2))
+BACKTEST_VIEWS = {
+    "seats": "Seats: forecast vs actual",
+    "races": "Races: forecast vs actual vote",
+    "calibration": "Calibration",
+    "map": "Map of misses",
+}
 
 
 # CPI-U annual averages (BLS, all items) — used to express dollar metrics in 2022 dollars
