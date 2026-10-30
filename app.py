@@ -2771,12 +2771,13 @@ def update_housing_chart(view, metric, geo_names, rate_y):
     yaxis = {**_axis_fmt(metric), "tickformat": _hover_fmt(metric)}
     if view == "metro":
         return _housing_metro_fig(metric, yaxis)
+    # All states regardless of the (hidden) picker, so check before the empty-picker case.
+    if view == "ratescatter":
+        return _housing_rate_scatter_fig(rate_y), _HOUSING_NOTES["ratescatter"]
     if not geo_names:
         return px.line(), _HOUSING_NOTES[view]
     if view == "payment":
         return _housing_payment_fig(geo_names), _HOUSING_NOTES["payment"]
-    if view == "ratescatter":
-        return _housing_rate_scatter_fig(rate_y), _HOUSING_NOTES["ratescatter"]
     df = housing_state[housing_state["state"].isin(geo_names)].copy()
     df["state"] = df["state"].astype(str)
     df["window"] = df["year"].map(_acs5_window)
