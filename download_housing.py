@@ -4,6 +4,10 @@ c_housing_state.csv — US + states, ACS 5-year 2009-2024: vacancy, housing unit
     per household, young-adult headship, renter cost burden, price-to-income.
 c_housing_metro.csv — metropolitan areas, ACS 2020-24, the same indicators plus
     the Wharton Residential Land Use Regulatory Index (WRLURI 2018).
+c_housing_payment.csv — US + states, ACS 1-year 2005-2025: monthly mortgage payment
+    on the median home at that year's 30-year fixed rate (Freddie Mac PMMS via FRED),
+    as a share of median household income. 1-year because 5-year windows blend
+    years with very different rates. No 2020 1-year release.
 
 WRLURI is a survey of ~2,800 local governments (Gyourko, Hartley & Krimmel 2021,
 NBER w26573). Jurisdictions are mapped to 2023 metros through their county and
@@ -22,8 +26,14 @@ from census_common import MAX_RETRIES, log as _log, require_api_key, skip_if_dow
 
 YEARS = list(range(2009, 2025))
 METRO_YEAR = 2024
-OUTPUTS = ["c_housing_state.csv", "c_housing_metro.csv"]
+PAYMENT_YEARS = [y for y in range(2005, 2026) if y != 2020]
+OUTPUTS = ["c_housing_state.csv", "c_housing_metro.csv", "c_housing_payment.csv"]
 MIN_JURIS = 5
+# Payment assumptions: principal + interest only, 20% down, 30-year fixed. Taxes
+# and insurance vary by place, not by rate, so they're left out.
+LTV = 0.8
+TERM_MONTHS = 360
+FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
 
 CBSA_URL = (
     "https://www2.census.gov/programs-surveys/metro-micro/geographies/"
@@ -64,16 +74,16 @@ VARS = {
 }
 
 
-def _fetch(year, for_clause):
-    url = f"https://api.census.gov/data/{year}/acs/acs5"
-    params = {"get": "NAME," + ",".join(VARS), "for": for_clause, "key": census_api_key}
+def _fetch(year, for_clause, dataset="acs5", variables=VARS):
+    url = f"https://api.census.gov/data/{year}/acs/{dataset}"
+    params = {"get": "NAME," + ",".join(variables), "for": for_clause, "key": census_api_key}
     for attempt in range(MAX_RETRIES + 2):
         try:
             r = requests.get(url, params=params, timeout=120)
             if r.status_code == 200 and r.text.startswith("["):
                 data = r.json()
-                df = pd.DataFrame(data[1:], columns=data[0]).rename(columns=VARS)
-                for c in VARS.values():
+                df = pd.DataFrame(data[1:], columns=data[0]).rename(columns=variables)
+                for c in variables.values():
                     df[c] = pd.to_numeric(df[c], errors="coerce")
                     # ACS sentinels (-666666666 etc.) mean "not computable"
                     df.loc[df[c] < 0, c] = np.nan
@@ -155,3 +165,25 @@ _log(
     f"Wrote c_housing_metro.csv ({len(metro)} metros, {metro['wrluri'].notna().sum()} with "
     f"WRLURI) in {time.time() - _start:.0f}s"
 )
+
+
+# Mortgage payment vs rates ###################################################
+pmms = pd.read_csv(io.StringIO(requests.get(FRED_URL, timeout=60).text))
+pmms.columns = ["date", "rate"]
+pmms["rate"] = pd.to_numeric(pmms["rate"], errors="coerce")
+rate_by_year = pmms.groupby(pd.to_datetime(pmms["date"]).dt.year)["rate"].mean()
+
+pay_vars = {k: v for k, v in VARS.items() if v in ("Median Home Value", "Median Household Income")}
+frames = []
+for year in PAYMENT_YEARS:
+    us = _fetch(year, "us:*", "acs1", pay_vars).drop(columns=["us"])
+    st = _fetch(year, "state:*", "acs1", pay_vars).drop(columns=["state"])
+    frames += [us, st]
+    _log(f"{year} (1-year): US + {len(st)} states")
+pay = pd.concat(frames, ignore_index=True).rename(columns={"NAME": "state"})
+pay["mortgage_rate"] = pay["year"].map(rate_by_year)
+r = pay["mortgage_rate"] / 100 / 12
+pay["monthly_payment"] = LTV * pay["Median Home Value"] * r / (1 - (1 + r) ** -TERM_MONTHS)
+pay["pct_payment_to_income"] = 12 * pay["monthly_payment"] / pay["Median Household Income"]
+pay.sort_values(["state", "year"]).to_csv("c_housing_payment.csv", index=False)
+_log(f"Wrote c_housing_payment.csv ({len(pay)} rows)")

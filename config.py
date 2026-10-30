@@ -401,6 +401,7 @@ HOUSING_METRICS = [
 HOUSING_VIEWS = {
     "trends": "Trends by state",
     "metro": "Metros by land-use regulation",
+    "payment": "Mortgage payment vs rates",
 }
 
 SUGGESTED_HOUSING = [
@@ -428,6 +429,16 @@ SUGGESTED_HOUSING = [
         "view": "trends",
         "metric": "pct_owner_25_34",
         "geo": [US_LABEL, "Florida", "Idaho", "California"],
+    },
+    {
+        # Payment on the median home (20% down, 30-yr fixed) / median income,
+        # ACS 1-year. US 16.2% (2021) -> 26.8% (2025), above 2006's 23.0%; ~80%
+        # of the rise is the rate alone. Texas 14.3% -> 23.6%, Idaho 22.4% ->
+        # 33.3%; California 30.7% -> 46.2%, still below its 2006 peak of 56.9%.
+        "label": "Rates and Payments",
+        "view": "payment",
+        "metric": None,
+        "geo": [US_LABEL, "Texas", "Idaho", "California"],
     },
     {
         # 99 metros with >= 5 surveyed jurisdictions: r = +0.62, pop-weighted
@@ -547,6 +558,8 @@ METRIC_LABELS = {
     "pct_rent_severely_burdened": "% Renters Paying 50%+ of Income",
     "price_to_income": "Price-to-Income Ratio",
     "wrluri": "Land-Use Regulation Index (Wharton 2018)",
+    "pct_payment_to_income": "Mortgage Payment as % of Income",
+    "mortgage_rate": "30-Year Mortgage Rate",
 }
 
 

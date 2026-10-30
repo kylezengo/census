@@ -43,6 +43,7 @@ FILES = [
     # Housing tab: state trends and metros with the Wharton regulation index
     "c_housing_state.csv",
     "c_housing_metro.csv",
+    "c_housing_payment.csv",
     # Elections tab: 2026 House and Senate forecasts (races and seat odds)
     "c_forecast_senate_2026.csv",
     "c_forecast_senate_seats_2026.csv",

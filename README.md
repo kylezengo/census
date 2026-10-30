@@ -34,7 +34,7 @@ pass `--force` to re-download.
 | 6 | `download_census2000.py` | `c_census2000_*.csv` (Census 2000 long form, prepended to the timeseries) |
 | 7 | `download_nhgis.py` | `c_nhgis_*.csv` (decennial censuses 1790–1990 via NHGIS; needs `ipums_api_key`) |
 | 8 | `download_age_profile.py` | `c_age_profile_2024.csv` (metrics by age, for the Age Profile tab) |
-| 9 | `download_housing.py` | `c_housing_state.csv`, `c_housing_metro.csv` (housing-shortage indicators and the Wharton land-use regulation index, for the Housing tab; needs `openpyxl`) |
+| 9 | `download_housing.py` | `c_housing_state.csv`, `c_housing_metro.csv`, `c_housing_payment.csv` (housing-shortage indicators, the Wharton land-use regulation index, and mortgage payment vs rates, for the Housing tab; needs `openpyxl`) |
 | 10 | `elections/fetch_elections.py` | MIT Election Lab House, Senate and President returns, 1976–2024, cleaned into `elections/data/`. The House file sits behind a Dataverse guestbook: download `1976-2024-house.tab` by hand from [doi:10.7910/DVN/IG0UN2](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/IG0UN2) into `elections/raw/` first |
 | 11 | `elections/fetch_house_inputs.py` | District presidential leans for 2006–2026 lines (The Downballot) and the 2026 House candidate list (Wikipedia) |
 | — | `elections/mrp.py` | Backtest only, not part of the forecast: tests whether a demographic (MRP) estimate from the CES survey improves the House model beyond presidential lean. It doesn't (2014–2022). Needs the CES cumulative file (CC0, [doi:10.7910/DVN/II2DB6](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/II2DB6)) in `elections/raw/ces/` and `census_api_key` |
@@ -84,7 +84,7 @@ gsutil -m cp \
   c_nhgis_state.csv c_nhgis_county.csv \
   c_nhgis_state_race.csv c_nhgis_county_race.csv \
   c_nhgis_state_age.csv c_nhgis_county_age.csv \
-  c_housing_state.csv c_housing_metro.csv \
+  c_housing_state.csv c_housing_metro.csv c_housing_payment.csv \
   c_forecast_senate_2026.csv c_forecast_senate_seats_2026.csv \
   c_forecast_house_2026.csv c_forecast_house_seats_2026.csv \
   c_backtest_senate_races.csv c_backtest_senate_seats.csv \
@@ -135,6 +135,9 @@ slow (~30s) first request after idle.
   Gyourko, Jonathan Hartley, and Jacob Krimmel. "The Local Residential Land Use
   Regulatory Environment Across U.S. Housing Markets: Evidence from a New Wharton
   Index." NBER Working Paper 26573, 2019.
+- **c_housing_payment.csv** (mortgage rate) — Freddie Mac Primary Mortgage Market
+  Survey 30-year fixed rate, via FRED series MORTGAGE30US,
+  https://fred.stlouisfed.org/series/MORTGAGE30US
 - **c_nhgis_*.csv** — IPUMS NHGIS time series tables. Cite as: Jonathan Schroeder,
   David Van Riper, Steven Manson, Grace Cooper, Zachary Krause, Tracy Kugler, Tsu Zhu,
   and Steven Ruggles. *IPUMS National Historical Geographic Information System:

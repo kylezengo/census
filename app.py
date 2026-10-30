@@ -174,6 +174,8 @@ AGE_PROFILE_LEVELS = ["State", "County", "Congressional District"]
 # Housing: US + states by year, and metros (2020-24) with the regulation index.
 housing_state = _read_acs("c_housing_state.csv", dtype={"state": "category", "year": "int16"})
 housing_metro = _read_acs("c_housing_metro.csv", dtype={"cbsa": object})
+# ACS 1-year 2005-2025 with that year's mortgage rate, for the payment view.
+housing_payment = _read_acs("c_housing_payment.csv", dtype={"year": "int16"})
 HOUSING_STATES = [US_LABEL] + sorted(
     s for s in housing_state["state"].astype(str).unique() if s != US_LABEL
 )
@@ -1552,12 +1554,17 @@ app.layout = html.Div(
                                                 "marginTop": "4px",
                                             },
                                         ),
-                                        html.Label("Metric", style=_bold_mt),
-                                        dcc.Dropdown(
-                                            id="housing-metric",
-                                            options=_make_options(HOUSING_METRICS),
-                                            value="pct_rental_vacancy",
-                                            clearable=False,
+                                        html.Div(
+                                            [
+                                                html.Label("Metric", style=_bold_mt),
+                                                dcc.Dropdown(
+                                                    id="housing-metric",
+                                                    options=_make_options(HOUSING_METRICS),
+                                                    value="pct_rental_vacancy",
+                                                    clearable=False,
+                                                ),
+                                            ],
+                                            id="housing-metric-controls",
                                         ),
                                         html.Div(
                                             [
@@ -2675,6 +2682,16 @@ _HOUSING_NOTES = {
         "regulated metros also tend to be coastal and short on buildable land, "
         "and expensive places may adopt more rules."
     ),
+    "payment": (
+        "Monthly principal and interest on the median home value, with 20% down "
+        "on a 30-year fixed loan at that year's average rate (Freddie Mac, via "
+        "FRED), as a share of median household income. Leaves out taxes and "
+        "insurance, and owners who locked in a lower rate pay less. ACS 1-Year "
+        "Estimates, so single years are noisier than the 5-year trends; there "
+        "is no 2020 release. Home values are owner-reported. Rising rates and "
+        "rising prices often go together, so this doesn't show rates causing "
+        "price changes."
+    ),
 }
 
 
@@ -2683,19 +2700,25 @@ _HOUSING_NOTES = {
     Output("housing-metric", "value"),
     Output("housing-geo", "value"),
     [Input(f"housing-preset-{i}", "n_clicks") for i in range(len(SUGGESTED_HOUSING))],
+    State("housing-metric", "value"),
     State("housing-geo", "value"),
     prevent_initial_call=True,
 )
 def load_housing_preset(*args):
-    *_, geo = args
+    *_, metric, geo = args
     s = SUGGESTED_HOUSING[_triggered_idx("housing-preset")]
-    # Metro presets leave the state picker as it was.
-    return s["view"], s["metric"], s["geo"] or geo
+    # Metro presets leave the state picker as it was; the payment preset, the metric.
+    return s["view"], s["metric"] or metric, s["geo"] or geo
 
 
-@app.callback(Output("housing-geo-controls", "style"), Input("housing-view", "value"))
-def toggle_housing_geo(view):
-    return {} if view == "trends" else {"display": "none"}
+@app.callback(
+    Output("housing-geo-controls", "style"),
+    Output("housing-metric-controls", "style"),
+    Input("housing-view", "value"),
+)
+def toggle_housing_controls(view):
+    hide = {"display": "none"}
+    return (hide if view == "metro" else {}), (hide if view == "payment" else {})
 
 
 @app.callback(
@@ -2711,7 +2734,9 @@ def update_housing_chart(view, metric, geo_names):
     if view == "metro":
         return _housing_metro_fig(metric, yaxis)
     if not geo_names:
-        return px.line(), _HOUSING_NOTES["trends"]
+        return px.line(), _HOUSING_NOTES[view]
+    if view == "payment":
+        return _housing_payment_fig(geo_names), _HOUSING_NOTES["payment"]
     df = housing_state[housing_state["state"].isin(geo_names)].copy()
     df["state"] = df["state"].astype(str)
     df["window"] = df["year"].map(_acs5_window)
@@ -2738,6 +2763,55 @@ def update_housing_chart(view, metric, geo_names):
         legend_title="State",
     )
     return fig, _HOUSING_NOTES["trends"]
+
+
+def _housing_payment_fig(geo_names):
+    metric = "pct_payment_to_income"
+    df = housing_payment[housing_payment["state"].isin(geo_names)]
+    fig = px.line(
+        df.sort_values(["state", "year"]),
+        x="year",
+        y=metric,
+        color="state",
+        markers=True,
+        custom_data=["monthly_payment", "Median Home Value", "mortgage_rate"],
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        category_orders={"state": [g for g in HOUSING_STATES if g in geo_names]},
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "%{fullData.name}, %{x}<br>"
+            f"%{{y:{_hover_fmt(metric)}}} of income<br>"
+            "$%{customdata[0]:,.0f}/mo on a $%{customdata[1]:,.0f} home "
+            "at %{customdata[2]:.2f}%<extra></extra>"
+        )
+    )
+    # The rate is national, so one line from any state's rows.
+    rates = housing_payment.drop_duplicates("year").sort_values("year")
+    fig.add_scatter(
+        x=rates["year"],
+        y=rates["mortgage_rate"],
+        name=_metric_label("mortgage_rate"),
+        yaxis="y2",
+        mode="lines",
+        line={"color": "#999", "dash": "dash"},
+        hovertemplate="30-yr rate, %{x}: %{y:.2f}%<extra></extra>",
+    )
+    fig.update_layout(
+        margin={"l": 40, "r": 40, "t": 20, "b": 40},
+        xaxis={"title": "ACS 1-year estimate", "dtick": 1},
+        yaxis={**_axis_fmt(metric), "rangemode": "tozero"},
+        yaxis2={
+            "title": _metric_label("mortgage_rate"),
+            "overlaying": "y",
+            "side": "right",
+            "ticksuffix": "%",
+            "rangemode": "tozero",
+            "showgrid": False,
+        },
+        legend_title="State",
+    )
+    return fig
 
 
 def _housing_metro_fig(metric, yaxis):
