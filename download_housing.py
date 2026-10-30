@@ -6,7 +6,8 @@ c_housing_metro.csv — metropolitan areas, ACS 2020-24, the same indicators plu
     the Wharton Residential Land Use Regulatory Index (WRLURI 2018).
 c_housing_payment.csv — US + states, ACS 1-year 2005-2025: monthly mortgage payment
     on the median home at that year's 30-year fixed rate (Freddie Mac PMMS via FRED),
-    as a share of median household income. 1-year because 5-year windows blend
+    as a share of median household income, plus the median home value in
+    latest-year dollars (CPI-U via FRED). 1-year because 5-year windows blend
     years with very different rates. No 2020 1-year release.
 
 WRLURI is a survey of ~2,800 local governments (Gyourko, Hartley & Krimmel 2021,
@@ -33,7 +34,7 @@ MIN_JURIS = 5
 # and insurance vary by place, not by rate, so they're left out.
 LTV = 0.8
 TERM_MONTHS = 360
-FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
+FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={}"
 
 CBSA_URL = (
     "https://www2.census.gov/programs-surveys/metro-micro/geographies/"
@@ -168,10 +169,16 @@ _log(
 
 
 # Mortgage payment vs rates ###################################################
-pmms = pd.read_csv(io.StringIO(requests.get(FRED_URL, timeout=60).text))
-pmms.columns = ["date", "rate"]
-pmms["rate"] = pd.to_numeric(pmms["rate"], errors="coerce")
-rate_by_year = pmms.groupby(pd.to_datetime(pmms["date"]).dt.year)["rate"].mean()
+def _fred_annual(series):
+    df = pd.read_csv(io.StringIO(requests.get(FRED_URL.format(series), timeout=60).text))
+    df.columns = ["date", "value"]
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    return df.groupby(pd.to_datetime(df["date"]).dt.year)["value"].mean()
+
+
+rate_by_year = _fred_annual("MORTGAGE30US")
+# CPI-U here rather than config.CPI, which doesn't reach back to 2005 or out to 2025
+cpi = _fred_annual("CPIAUCSL")
 
 pay_vars = {k: v for k, v in VARS.items() if v in ("Median Home Value", "Median Household Income")}
 frames = []
@@ -185,5 +192,7 @@ pay["mortgage_rate"] = pay["year"].map(rate_by_year)
 r = pay["mortgage_rate"] / 100 / 12
 pay["monthly_payment"] = LTV * pay["Median Home Value"] * r / (1 - (1 + r) ** -TERM_MONTHS)
 pay["pct_payment_to_income"] = 12 * pay["monthly_payment"] / pay["Median Household Income"]
+pay["real_home_value"] = pay["Median Home Value"] * cpi[max(PAYMENT_YEARS)] / pay["year"].map(cpi)
+pay["price_to_income"] = pay["Median Home Value"] / pay["Median Household Income"]
 pay.sort_values(["state", "year"]).to_csv("c_housing_payment.csv", index=False)
 _log(f"Wrote c_housing_payment.csv ({len(pay)} rows)")
