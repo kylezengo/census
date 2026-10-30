@@ -2856,7 +2856,7 @@ def _housing_payment_fig(geo_names):
 
 
 def _housing_rate_scatter_fig(y):
-    """Every state-year as a dot, colored by year. The rate is national, so each
+    """Every state-year as a dot. The rate is national, so each
     year's states stack in a column at that year's rate. No trendline — the
     year-to-year correlation is positive and would read as causal."""
     df = housing_payment[housing_payment["state"] != US_LABEL].sort_values("year")
@@ -2866,10 +2866,8 @@ def _housing_rate_scatter_fig(y):
         df,
         x="mortgage_rate",
         y=y,
-        color="year",
         hover_name="state",
         custom_data=["year"],
-        color_continuous_scale=_trunc_colorscale("Viridis"),
     )
     fig.update_traces(
         hovertemplate=(
@@ -2882,7 +2880,6 @@ def _housing_rate_scatter_fig(y):
         margin={"l": 40, "r": 20, "t": 20, "b": 40},
         xaxis={"title": _metric_label("mortgage_rate"), "ticksuffix": "%"},
         yaxis={"title": HOUSING_RATE_Y[y], "tickformat": y_fmt},
-        coloraxis_colorbar={"title": "Year", "tickformat": "d"},
     )
     return fig
 
