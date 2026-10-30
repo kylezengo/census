@@ -448,13 +448,13 @@ SUGGESTED_HOUSING = [
         "geo": [US_LABEL, "Texas", "Idaho", "California"],
     },
     {
-        # US, real 2025 $: 2006 6.4% / $296k -> 2012 3.7% / $241k -> 2021 3.0% /
-        # $334k -> 2025 6.6% / $371k. Year-to-year r = +0.58, which is why the
-        # view draws the path and no trendline.
+        # Every state-year, colored by year. US, real 2025 $: 2006 6.4% / $296k,
+        # 2012 3.7% / $241k, 2021 3.0% / $334k, 2025 6.6% / $371k. Year-to-year
+        # r = +0.58, which is why the view has no trendline.
         "label": "Rates vs Prices",
         "view": "ratescatter",
         "metric": None,
-        "geo": [US_LABEL],
+        "geo": [],
     },
     {
         # 99 metros with >= 5 surveyed jurisdictions: r = +0.62, pop-weighted

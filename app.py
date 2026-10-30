@@ -2713,11 +2713,13 @@ _HOUSING_NOTES = {
         "price changes."
     ),
     "ratescatter": (
-        "Each dot is one year (ACS 1-Year Estimates, no 2020 release), joined in "
-        "time order. The rate is the national 30-year fixed average (Freddie Mac, "
-        "via FRED), so every state shares the same horizontal positions. Home "
-        "values are owner-reported and in 2025 dollars. There's no trendline on "
-        "purpose: across years, higher rates have gone with higher prices, "
+        "Each dot is one state (plus DC and Puerto Rico) in one year, ACS 1-Year "
+        "Estimates 2005–2025 (no 2020 release). The rate is the national 30-year "
+        "fixed average (Freddie Mac, via FRED), so each year's states line up in "
+        "a column at that year's rate. Home values are owner-reported and in 2025 "
+        "dollars. Most of the vertical spread is between states, not years. "
+        "There's no trendline on purpose: across years, higher rates have gone "
+        "with higher prices, "
         "because rates and prices both follow the economy. During the 2006–12 "
         "bust, the price crash pulled rates down, and in 2022–25 rates jumped "
         "while prices kept rising."
@@ -2750,7 +2752,7 @@ def load_housing_preset(*args):
 def toggle_housing_controls(view):
     hide = {"display": "none"}
     return (
-        hide if view == "metro" else {},
+        hide if view in ("metro", "ratescatter") else {},
         hide if view in ("payment", "ratescatter") else {},
         {} if view == "ratescatter" else hide,
     )
@@ -2774,7 +2776,7 @@ def update_housing_chart(view, metric, geo_names, rate_y):
     if view == "payment":
         return _housing_payment_fig(geo_names), _HOUSING_NOTES["payment"]
     if view == "ratescatter":
-        return _housing_rate_scatter_fig(geo_names, rate_y), _HOUSING_NOTES["ratescatter"]
+        return _housing_rate_scatter_fig(rate_y), _HOUSING_NOTES["ratescatter"]
     df = housing_state[housing_state["state"].isin(geo_names)].copy()
     df["state"] = df["state"].astype(str)
     df["window"] = df["year"].map(_acs5_window)
@@ -2853,42 +2855,34 @@ def _housing_payment_fig(geo_names):
     return fig
 
 
-def _housing_rate_scatter_fig(geo_names, y):
-    """Connected scatter: one dot per year, in time order. No trendline — the
+def _housing_rate_scatter_fig(y):
+    """Every state-year as a dot, colored by year. The rate is national, so each
+    year's states stack in a column at that year's rate. No trendline — the
     year-to-year correlation is positive and would read as causal."""
-    df = housing_payment[housing_payment["state"].isin(geo_names)].sort_values("year")
-    order = [g for g in HOUSING_STATES if g in geo_names]
-    colors = px.colors.qualitative.Set2
+    df = housing_payment[housing_payment["state"] != US_LABEL].sort_values("year")
     is_dollar = y == "real_home_value"
     y_fmt = "$,.0f" if is_dollar else ".1f"
-    fig = go.Figure()
-    for i, name in enumerate(order):
-        d = df[df["state"] == name]
-        # Year labels on the first line only; more would pile up at the same x.
-        fig.add_scatter(
-            x=d["mortgage_rate"],
-            y=d[y],
-            name=name,
-            mode="lines+markers+text" if i == 0 else "lines+markers",
-            text=d["year"].astype(str),
-            textposition="top center",
-            textfont={"size": 10, "color": "#666"},
-            line={"color": colors[i % len(colors)], "width": 1.5},
-            marker={"size": 7},
-            customdata=d["year"],
-            hovertemplate=(
-                f"{name}, %{{customdata}}<br>Rate: %{{x:.2f}}%<br>"
-                f"{HOUSING_RATE_Y[y]}: %{{y:{y_fmt}}}<extra></extra>"
-            ),
-        )
+    fig = px.scatter(
+        df,
+        x="mortgage_rate",
+        y=y,
+        color="year",
+        hover_name="state",
+        custom_data=["year"],
+        color_continuous_scale=_trunc_colorscale("Viridis"),
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{hovertext}</b>, %{customdata[0]}<br>Rate: %{x:.2f}%<br>"
+            f"{HOUSING_RATE_Y[y]}: %{{y:{y_fmt}}}<extra></extra>"
+        ),
+        marker={"size": 7, "opacity": 0.7, "line": {"width": 0.5, "color": "white"}},
+    )
     fig.update_layout(
         margin={"l": 40, "r": 20, "t": 20, "b": 40},
         xaxis={"title": _metric_label("mortgage_rate"), "ticksuffix": "%"},
-        yaxis={
-            "title": HOUSING_RATE_Y[y],
-            "tickformat": "$,.0f" if is_dollar else ".1f",
-        },
-        legend_title="State",
+        yaxis={"title": HOUSING_RATE_Y[y], "tickformat": y_fmt},
+        coloraxis_colorbar={"title": "Year", "tickformat": "d"},
     )
     return fig
 
