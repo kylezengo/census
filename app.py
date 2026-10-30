@@ -3161,31 +3161,38 @@ def _backtest_races_fig(df, chamber):
 
 
 def _backtest_calibration_fig(df, chamber):
-    """Binned forecast probability vs how often Democrats won, with the 90% range
-    a perfectly calibrated forecast would land in given each bin's race count."""
+    """Races grouped into 10-point bins by forecast probability; each dot is a
+    bin, placed at its average forecast and the share Democrats won, with the
+    90% range a perfectly calibrated forecast would land in given its count."""
     bins = np.linspace(0, 1, 11)
     series = [("p_dem", "With polls" if chamber in _POLLED else "Forecast", DEM_COLOR)]
     if chamber in _POLLED:
         series.append(("p_fund", "Fundamentals only", "#999"))
     fig = go.Figure()
+    for lo in bins[:-1:2]:  # shade every other bin so the bin edges show
+        fig.add_vrect(x0=lo, x1=lo + 0.1, fillcolor="#f0f0f0", line_width=0, layer="below")
     fig.add_shape(type="line", x0=0, y0=0, x1=1, y1=1, line={"color": "#555", "dash": "dot"})
     for col, name, color in series:
         g = df.groupby(pd.cut(df[col], bins, include_lowest=True), observed=True).agg(
             p=(col, "mean"), won=("dem_won", "mean"), n=(col, "size"))
+        edges = [f"{iv.left * 100:.0f}–{iv.right * 100:.0f}%".replace("-0–", "0–")
+                 for iv in g.index]
         se = 1.645 * np.sqrt(g["p"] * (1 - g["p"]) / g["n"])
         fig.add_trace(go.Scatter(
             x=g["p"], y=g["won"], mode="markers+lines", name=name,
             marker={"size": 6 + 16 * np.sqrt(g["n"] / g["n"].max()), "color": color},
             line={"color": color, "width": 1},
             error_y={"type": "data", "array": se, "color": color, "thickness": 1},
-            customdata=g["n"],
-            hovertemplate=("Forecast %{x:.0%}: Democrats won %{y:.0%} of "
-                           "%{customdata} races<extra></extra>"),
+            customdata=np.column_stack([g["n"], edges]),
+            hovertemplate=(f"<b>{name}</b>, forecasts %{{customdata[1]}}:<br>Democrats won "
+                           "%{y:.0%} of %{customdata[0]} races (average forecast "
+                           "%{x:.0%})<extra></extra>"),
         ))
     fig.update_layout(
         margin={"l": 40, "r": 20, "t": 30, "b": 40},
-        xaxis={"title": "Forecast probability the Democrat wins (binned)", "tickformat": ".0%",
-               "range": [-0.02, 1.02]},
+        xaxis={"title": "Forecast chance the Democrat wins (10-point bins; each dot sits at "
+                        "its bin's average forecast)", "tickformat": ".0%",
+               "tickvals": list(bins), "range": [-0.02, 1.02]},
         yaxis={"title": "Share of those races Democrats won", "tickformat": ".0%",
                "range": [-0.05, 1.05]},
         legend={"orientation": "h", "y": 1.05, "x": 0},
