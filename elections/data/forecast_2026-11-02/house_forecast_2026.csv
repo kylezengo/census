@@ -1,0 +1,436 @@
+state_po,district,dem,rep,has_dem,has_rep,inc,incumbents,lean,pred,p_dem
+AL,1,Clyde Jones Jr.,Jerry Carl,True,True,0,,-0.1724994613156772,0.4045184480934802,0.0335
+AL,2,Shomari Figures,Rhett Marques,True,True,1,Shomari Figures (D); Barry Moore (R),-0.068257037073253,0.5420308795015599,0.7922
+AL,3,Lee McInnis,Mike Rogers,True,True,-1,Mike Rogers (R),-0.2298731986894146,0.3056536379950325,0.0001125
+AL,4,Amanda Pusczek,Robert Aderholt,True,True,-1,Robert Aderholt (R),-0.3308832996995157,0.22236135068979082,0.0
+AL,5,Andrew Sneed,Dale Strong,True,True,-1,Dale Strong (R),-0.1389641077803237,0.38061669656974995,0.0102125
+AL,6,Maurice Mercer,Gary Palmer,True,True,-1,Gary Palmer (R),-0.169267138083354,0.35562901037817746,0.0026875
+AL,7,Terri Sewell,Ammie Akin,True,True,1,Terri Sewell (D),0.0933591245429085,0.6752985391899465,0.9996
+AK,0,Eric Hafner,Nick Begich III,True,True,-1,Nick Begich III (R),-0.0654161279823439,0.44126389326387905,0.1265625
+AZ,1,Amish Shah,Jay Feely,True,True,0,David Schweikert (R),-0.0076509764671924,0.5404514609756345,0.7807375
+AZ,2,Jonathan Nez,Eli Crane,True,True,-1,Eli Crane (R),-0.068257037073253,0.4389212976834191,0.118875
+AZ,3,Yassamin Ansari,,True,False,1,Yassamin Ansari (D),0.2115821713373839,,1.0
+AZ,4,Greg Stanton,Zuhdi Jasser,True,True,1,Greg Stanton (D),0.042854074037858,0.6336523955373257,0.9949875
+AZ,5,Elizabeth Lee,Mark Lamb,True,True,0,Andy Biggs (R),-0.0945402776422079,0.46880309546714605,0.272975
+AZ,6,JoAnna Mendoza,Juan Ciscomani,True,True,-1,Juan Ciscomani (R),0.0024500336338176,0.4972258987970882,0.47985
+AZ,7,Adelita Grijalva,Daniel Butierez,True,True,1,Adelita Grijalva (D),0.1197454366435064,0.6970565244451934,0.999975
+AZ,8,Bernadette Greene-Placentia,Abraham Hamadeh,True,True,-1,Abraham Hamadeh (R),-0.0783580471742631,0.4305920689528949,0.090875
+AZ,9,Dani Sterbinsky,Paul Gosar,True,True,-1,Paul Gosar (R),-0.1490651178813338,0.3722874678392258,0.0070375
+AR,1,Terri Green,Rick Crawford,True,True,-1,Rick Crawford (R),-0.2271933388666976,0.30786343337251854,0.0001625
+AR,2,Chris Jones,French Hill,True,True,-1,French Hill (R),-0.0741321143769017,0.43407674627893056,0.101975
+AR,3,Robb Ryerse,Steve Womack,True,True,-1,Steve Womack (R),-0.1213654406971205,0.3951284455950962,0.0209625
+AR,4,James Russell,Bruce Westerman,True,True,-1,Bruce Westerman (R),-0.1965810939687385,0.33310609595380086,0.0006375
+CA,1,Mike McGuire,James Gallagher,True,True,-1,James Gallagher (R),0.0700005386843227,0.5529276159324685,0.84675
+CA,2,Jared Huffman,Robin Littau,True,True,1,Jared Huffman (D),0.136366518065766,0.7107621625477453,0.999975
+CA,3,Ami Bera,Robb Tucker,True,True,1,Ami Bera (D),0.059583872017656,0.6474476806222563,0.9976
+CA,4,Eric Jones; Mike Thompson,,True,False,1,Mike Thompson (D),0.0848201263131886,,1.0
+CA,5,Michael Masuda,Tom McClintock,True,True,-1,Tom McClintock (R),-0.1007468839960896,0.41213037640585687,0.0452875
+CA,6,Richard Pan,Kevin Kiley,True,True,-1,Kevin Kiley (R),0.0538922912616422,0.5396448574865618,0.777975
+CA,7,Doris Matsui; Mai Vang,,True,False,1,Doris Matsui (D),0.0745108479626732,,1.0
+CA,8,John Garamendi,Rudy Recile,True,True,1,John Garamendi (D),0.184583872017656,0.7505218861624928,1.0
+CA,9,Josh Harder,John McBride,True,True,1,Josh Harder (D),0.0642015696121577,0.6512554047100829,0.9982375
+CA,10,Mark DeSaulnier,Jeff Frese,True,True,1,Mark DeSaulnier (D),0.1776036314678278,0.7447660241692665,1.0
+CA,11,Connie Chan; Scott Wiener,,True,False,0,Nancy Pelosi (D),0.3616672053509893,,1.0
+CA,12,Jamie Joyce; Lateefah Simon,,True,False,1,Lateefah Simon (D),0.3929172053509893,,1.0
+CA,13,Adam Gray,Kevin Lincoln,True,True,1,Adam Gray (D),0.0126551778595804,0.6087505776831812,0.9820375
+CA,14,Melissa Hernandez; Aisha Wahab,,True,False,1,Aisha Wahab (D),0.184583872017656,,1.0
+CA,15,Kevin Mullin,Charles Hoelter,True,True,1,Kevin Mullin (D),0.2575005386843227,0.8106485060609642,1.0
+CA,16,Sam Liccardo,Peter Soulé,True,True,1,Sam Liccardo (D),0.2575005386843227,0.8106485060609642,1.0
+CA,17,Ro Khanna,Ritesh Tandon,True,True,1,Ro Khanna (D),0.2127636965790595,0.773758790393932,1.0
+CA,18,Zoe Lofgren,Shane Lewis,True,True,1,Zoe Lofgren (D),0.1569850747667969,0.7277640933585059,0.9999875
+CA,19,Jimmy Panetta,Peter Coe Verbica,True,True,1,Jimmy Panetta (D),0.184583872017656,0.7505218861624928,1.0
+CA,20,Sandra Van Scotter,Vince Fong,True,True,-1,Vince Fong (R),-0.1557647674381262,0.36676297939551084,0.0046875
+CA,21,Jim Costa,Kyle Kirkland,True,True,1,Jim Costa (D),0.0381127835822819,0.6297427575617736,0.9939875
+CA,22,Randy Villegas,David Valadao,True,True,-1,David Valadao (R),-0.0027035429483303,0.4929762923019228,0.444825
+CA,23,Tessa Lynn Hodge,Jay Obernolte,True,True,-1,Jay Obernolte (R),-0.0904376056455741,0.4206313418112372,0.063425
+CA,24,Salud Carbajal,Bob Smith,True,True,1,Salud Carbajal (D),0.136366518065766,0.7107621625477453,0.99995
+CA,25,Raul Ruiz,Joe Males,True,True,1,Raul Ruiz (D),0.0381127835822819,0.6297427575617736,0.994075
+CA,26,Jacqui Irwin,Sam Gallucci,True,True,0,Julia Brownley (D),0.0848201263131886,0.6167025446117731,0.9881625
+CA,27,George Whitesides,Jason Gibbs,True,True,1,George T. Whitesides (D),0.0538922912616422,0.6427544393047027,0.997175
+CA,28,Judy Chu,April Verlato,True,True,1,Judy Chu (D),0.136366518065766,0.7107621625477453,0.9999625
+CA,29,Angelica Dueñas; Luz Rivas,,True,False,1,Luz Rivas (D),0.1776036314678278,,1.0
+CA,30,Laura Friedman,Scott Meyers,True,True,1,Laura Friedman (D),0.215833872017656,0.7762904375475519,1.0
+CA,31,Gil Cisneros,Eric Ching,True,True,1,Gil Cisneros (D),0.0745108479626732,0.6597563701154633,0.9989
+CA,32,Brad Sherman,Larry Thompson,True,True,1,Brad Sherman (D),0.136366518065766,0.7107621625477453,0.9999875
+CA,33,Pete Aguilar,Stephanie Vargas,True,True,1,Pete Aguilar (D),0.0538922912616422,0.6427544393047027,0.997225
+CA,34,Jimmy Gomez; Angela Gonzales-Torres,,True,False,1,Jimmy Gomez (D),0.2759215913159016,,1.0
+CA,35,Norma Torres,Mike Cargile,True,True,1,Norma Torres (D),0.0435830129111268,0.6342534738993223,0.9952875
+CA,36,Ted Lieu,Houston Brignano,True,True,1,Ted Lieu (D),0.2085314665193742,0.7702689203854075,1.0
+CA,37,Sydney Kamlager-Dove; Samantha Mota,,True,False,1,Sydney Kamlager-Dove (D),0.3219335283750443,,1.0
+CA,38,Hilda Solis,Pedro Casas,True,True,0,,0.0745108479626732,0.6082015792063928,0.9814125
+CA,39,Mark Takano,Steve Manos,True,True,1,Mark Takano (D),0.0538922912616422,0.6427544393047027,0.9971
+CA,40,,Ken Calvert; Young Kim,False,True,-1,Young Kim (R); Ken Calvert (R),-0.0595097705940277,,0.0
+CA,41,Linda Sánchez,Mitch Clemmons,True,True,1,Linda Sánchez (D),0.0848201263131886,0.6682573355208435,0.9994625
+CA,42,Robert Garcia,Brian Burley,True,True,1,Robert Garcia (D),0.0745108479626732,0.6597563701154633,0.999025
+CA,43,Maxine Waters,Cristian Morales,True,True,1,Maxine Waters (D),0.2600778582719515,0.8127737474123091,1.0
+CA,44,Nanette Barragán,Genevieve Angel,True,True,1,Nanette Barragán (D),0.1879129098183433,0.753266989574647,1.0
+CA,45,Derek Tran,Chuong Vo,True,True,1,Derek Tran (D),0.0279087019496288,0.621328536701346,0.99045
+CA,46,Lou Correa,David Pan,True,True,1,Lou Correa (D),0.0951294046637041,0.6767583009262239,0.9997125
+CA,47,Dave Min,Jenny Le Roux,True,True,1,Dave Min (D),0.059583872017656,0.6474476806222563,0.997775
+CA,48,Marni von Wilpert,Jim Desmond,True,True,0,Darrell Issa (R),0.0229644562100958,0.5656967521794911,0.897325
+CA,49,Mike Levin,Armen Kurdian,True,True,1,Mike Levin (D),0.0745108479626732,0.6597563701154633,0.99865
+CA,50,Scott Peters,Steve Cohen,True,True,1,Scott Peters (D),0.1054386830142196,0.6852592663316043,0.999925
+CA,51,Sara Jacobs,Ricardo Cabrera,True,True,1,Sara Jacobs (D),0.1054386830142196,0.6852592663316043,0.9997
+CA,52,Juan Vargas,Jeff Belle,True,True,1,Juan Vargas (D),0.0951294046637041,0.6767583009262239,0.9996875
+CO,1,Melat Kiros,Christy Peterson,True,True,0,Diana DeGette (D),0.2932148243986084,0.7885434881633899,1.0
+CO,2,Joe Neguse,Kelley Dennison,True,True,1,Joe Neguse (D),0.2115821713373839,0.7727845121890404,1.0
+CO,3,Dwayne Romero,Jeff Hurd,True,True,-1,Jeff Hurd (R),-0.0435198694789426,0.459319408860213,0.2163625
+CO,4,Eileen Laubacher,Lauren Boebert,True,True,-1,Lauren Boebert (R),-0.0843361960095548,0.4256625254185031,0.07455
+CO,5,Jessica Killin,Jeff Crank,True,True,-1,Jeff Crank (R),-0.0388912138929968,0.46313616883813885,0.2387375
+CO,6,Jason Crow,Jason Clark,True,True,1,Jason Crow (D),0.1054386830142196,0.6852592663316043,0.999825
+CO,7,Brittany Pettersen,Tim Bennett,True,True,1,Brittany Pettersen (D),0.0848201263131886,0.6682573355208435,0.9993125
+CO,8,Manny Rutinel,Gabe Evans,True,True,-1,Gabe Evans (R),-0.0027035429483303,0.4929762923019228,0.445575
+CT,1,Luke Bronin,Amy Chai,True,True,0,John B. Larson (D),0.1236621548459388,0.6487314344724486,0.998225
+CT,2,Joe Courtney,George Austin,True,True,1,Joe Courtney (D),0.048316865214935,0.6381569784222011,0.996075
+CT,3,Rosa DeLauro,Chris Lancia,True,True,1,Rosa DeLauro (D),0.0789291101128941,0.6633996410034834,0.9991125
+CT,4,Jim Himes,Michael Goldstein,True,True,1,Jim Himes (D),0.1236621548459388,0.700286225381519,0.9999875
+CT,5,Jahana Hayes,Chris Shea,True,True,1,Jahana Hayes (D),0.0381127835822819,0.6297427575617736,0.994375
+DE,0,Sarah McBride,Joseph Arminio,True,True,1,Sarah McBride (D),0.0832581144418985,0.6669693104594224,0.9993875
+FL,1,Gay Valimont,Jimmy Patronis,True,True,-1,Jimmy Patronis (R),-0.1793681481843641,0.3472997816476533,0.00175
+FL,2,Amanda Green,Austin Rogers,True,True,0,Neal Dunn (R),-0.0824994613156773,0.47873187608245044,0.3429875
+FL,3,Seth Harp,Kat Cammack,True,True,-1,Kat Cammack (R),-0.0985600673762833,0.4139336114918466,0.048425
+FL,4,LaShonda Holloway,Aaron Bean,True,True,-1,Aaron Bean (R),-0.0480550168712328,0.45557975514446747,0.1947875
+FL,5,Rachel Grage,John Rutherford,True,True,-1,John Rutherford (R),-0.0985600673762833,0.4139336114918466,0.0483625
+FL,6,Eric Yonce,Randy Fine,True,True,-1,Randy Fine (R),-0.1424994613156773,0.37770146651406644,0.0092
+FL,7,Bale Dalton,Ryan Elijah,True,True,0,Cory Mills (R),-0.0581560269722429,0.49880531732301375,0.4922875
+FL,8,Jennifer Jenkins,Mike Haridopolos,True,True,-1,Mike Haridopolos (R),-0.0783580471742631,0.4305920689528949,0.0906125
+FL,9,Darren Soto,Dan Green,True,True,1,Darren Soto (D),-0.0783580471742631,0.5337016507710358,0.7436125
+FL,10,Maxwell Frost,,True,False,1,Maxwell Frost (D),0.1299495182761594,,1.0
+FL,11,James Pericola,Joe Strada,True,True,0,Daniel Webster (R),-0.068257037073253,0.4904760885924895,0.4266375
+FL,12,Kimberly Overman,Gus Bilirakis,True,True,-1,Gus Bilirakis (R),-0.068257037073253,0.4389212976834191,0.1173
+FL,13,Leela Gray,Anna Paulina Luna,True,True,-1,Anna Paulina Luna (R),-0.0581560269722429,0.44725052641394325,0.152175
+FL,14,Kathy Castor,Mike Beltran,True,True,1,Kathy Castor (D),-0.0480550168712328,0.5586893369626083,0.8710375
+FL,15,Robert People,Laurel Lee,True,True,-1,Laurel Lee (R),-0.0945402776422079,0.4172483045580756,0.054875
+FL,16,Kelly Kirschner,Sydney Gruters,True,True,0,Vern Buchanan (R),-0.0581560269722429,0.49880531732301375,0.4894625
+FL,17,Matthew Montavon,Greg Steube,True,True,-1,Greg Steube (R),-0.1024994613156772,0.4106852122869422,0.0416625
+FL,18,Curtis Gibson,Scott Franklin,True,True,-1,Scott Franklin (R),-0.0783580471742631,0.4305920689528949,0.09005
+FL,19,Victor Arias,Jim Schwartzel,True,True,0,Byron Donalds (R),-0.1424994613156773,0.4292562574231369,0.0854625
+FL,20,Debbie Wasserman Schultz,Brent Andersen,True,True,1,Debbie Wasserman Schultz (D),0.1943692255530095,0.7585908264951882,1.0
+FL,21,James Martin,Brian Mast,True,True,-1,Brian Mast (R),-0.0724994613156773,0.4354230216165989,0.1057125
+FL,22,Pia Dandiya,Casey Askar,True,True,0,,-0.0480550168712328,0.5071345460535379,0.5535375
+FL,23,Lois Frankel,Deborah Adeimy,True,True,1,Lois Frankel (D),0.0731571043408883,0.6586400817288981,0.9991625
+FL,24,Oliver Gilbert,Te Mayonna Brown,True,True,0,Frederica Wilson (D),0.2044702356540197,0.7153652643166419,0.9999625
+FL,25,Jared Moskowitz,Scott Singer,True,True,1,Jared Moskowitz (D),-0.0379540067702227,0.5670185656931324,0.9017375
+FL,26,Nicole Locklin,Mario Díaz-Balart,True,True,-1,Mario Díaz-Balart (R),-0.0884590572752732,0.42226284022237076,0.0659125
+FL,27,Eliott Rodriguez,María Elvira Salazar,True,True,-1,María Elvira Salazar (R),-0.068257037073253,0.4389212976834191,0.1178125
+FL,28,Phil Ehr,Carlos Giménez,True,True,-1,Carlos A. Giménez (R),-0.1187620875783035,0.39727515403079827,0.0236375
+GA,1,Amanda Hollowell,Jim Kingston,True,True,0,Buddy Carter (R),-0.0724994613156773,0.48697781252566935,0.3993125
+GA,2,Sanford Bishop,Matt Day,True,True,1,Sanford Bishop (D),0.0475005386843227,0.6374838407533667,0.9959875
+GA,3,Maura Keller,Brian Jack,True,True,-1,Brian Jack (R),-0.1424994613156773,0.37770146651406644,0.008625
+GA,4,Hank Johnson,James Duffie,True,True,1,Hank Johnson (D),0.2751773063610903,0.8252246563393815,1.0
+GA,5,Nikema Williams,John Oscar Salvesen,True,True,1,Nikema Williams (D),0.3660863972701813,0.9001877149140989,1.0
+GA,6,Lucy McBath,Kevin Martin,True,True,1,Lucy McBath (D),0.2575005386843227,0.8106485060609642,1.0
+GA,7,Tony Kozycki,Rich McCormick,True,True,-1,Rich McCormick (R),-0.1047443592748609,0.4088340836976482,0.0376375
+GA,8,Kelly Esti,Austin Scott,True,True,-1,Austin Scott (R),-0.1424994613156773,0.37770146651406644,0.0090625
+GA,9,Caitlyn Gegen,Andrew Clyde,True,True,-1,Andrew Clyde (R),-0.1624994613156772,0.36120959362762867,0.0038625
+GA,10,Pam Delancy,Houston Gaines,True,True,0,Mike Collins (R),-0.0985600673762833,0.46548840240091705,0.2518
+GA,11,Chris Harden,John Cowan,True,True,0,Barry Loudermilk (R),-0.1086610774772934,0.4571591736703929,0.2043875
+GA,12,Ceretta Smith,Rick Allen,True,True,-1,Rick Allen (R),-0.0624994613156772,0.4436689580598179,0.1386375
+GA,13,Jasmine Clark,Jonathan Chavez,True,True,0,Everton Blair (D),0.2246722558560398,0.7320237217776902,1.0
+GA,14,Shawn Harris,Clay Fuller,True,True,-1,Clay Fuller (R),-0.1793681481843641,0.3472997816476533,0.001475
+HI,1,Ed Case,Adriel Lam,True,True,1,Ed Case (D),0.133763164946949,0.7086154541120433,0.9999625
+HI,2,Jill Tokuda,Brenton Awa,True,True,1,Jill Tokuda (D),0.1197454366435064,0.6970565244451934,0.9999625
+ID,1,Kaylee Peterson,Russ Fulcher,True,True,-1,Russ Fulcher (R),-0.2244582242022752,0.3101187915412928,0.000175
+ID,2,Ellie Gilbreath,Mike Simpson,True,True,-1,Mike Simpson (R),-0.131674719047636,0.3866274801897158,0.0144375
+IL,1,Jonathan Jackson,Christian Maxwell,True,True,1,Jonathan Jackson (D),0.1707658448067716,0.7391276287473306,1.0
+IL,2,Donna Miller,Michael Noack,True,True,0,Robin Kelly (D),0.1741672053509893,0.6903775781250693,0.999875
+IL,3,Delia Ramirez,Angel Oakley,True,True,1,Delia Ramirez (D),0.1640661952499792,0.7336031403036156,1.0
+IL,4,Patty Garcia,Lupe Castillo,True,True,0,Chuy García (D),0.1503576815414656,0.6707443961174053,0.9993625
+IL,5,Mike Quigley,Tommy Hanson,True,True,1,Mike Quigley (D),0.1943692255530095,0.7585908264951882,1.0
+IL,6,Sean Casten,Niki Conforti,True,True,1,Sean Casten (D),0.032753063936848,0.6253231668068016,0.9917625
+IL,7,La Shawn Ford,Chad Koppie,True,True,0,Danny Davis (D),0.335783366967151,0.823645237813456,1.0
+IL,8,Melissa Bean,Jennifer Davis,True,True,0,Raja Krishnamoorthi (D),0.042854074037858,0.5820976046282552,0.9446375
+IL,9,Daniel Biss,John Elleson,True,True,0,Jan Schakowsky (D),0.1943692255530095,0.7070360355861178,0.9999625
+IL,10,Brad Schneider,Carl Lambrecht,True,True,1,Brad Schneider (D),0.1197454366435064,0.6970565244451934,0.999875
+IL,11,Bill Foster,Jeff Walter,True,True,1,Bill Foster (D),0.0630560942398782,0.650310852998374,0.9979875
+IL,12,Julie Fortier,Mike Bost,True,True,-1,Mike Bost (R),-0.2096711784873944,0.3223120954560808,0.0003375
+IL,13,Nikki Budzinski,Jeff Wilson,True,True,1,Nikki Budzinski (D),0.0585209468475879,0.6465711992826284,0.9976875
+IL,14,Lauren Underwood,James Marter,True,True,1,Lauren Underwood (D),0.032753063936848,0.6253231668068016,0.991925
+IL,15,Jennifer Todd,Mary Miller,True,True,-1,Mary Miller (R),-0.1965810939687385,0.33310609595380086,0.00055
+IL,16,Paul Nolley,Darin LaHood,True,True,-1,Darin LaHood (R),-0.1086610774772934,0.4056043827613225,0.0330375
+IL,17,Eric Sorensen,Dillan Vancil,True,True,1,Eric Sorensen (D),0.032753063936848,0.6253231668068016,0.992325
+IN,1,Frank Mrvan,Barb Regnitz,True,True,1,Frank J. Mrvan (D),0.0075005386843227,0.6045000949804911,0.9781625
+IN,2,Jamee Decio,Rudy Yakym,True,True,-1,Rudy Yakym (R),-0.125152522540167,0.3920056419767932,0.01875
+IN,3,Kelly Thompson,Marlin Stutzman,True,True,-1,Marlin Stutzman (R),-0.1490651178813338,0.3722874678392258,0.0067375
+IN,4,Drew Cox,Jim Baird,True,True,-1,Jim Baird (R),-0.1455606858054732,0.3751772002559382,0.007525
+IN,5,J. D. Ford,Victoria Spartz,True,True,-1,Victoria Spartz (R),-0.0741321143769017,0.43407674627893056,0.1026625
+IN,6,Cinde Wirth,Jefferson Shreve,True,True,-1,Jefferson Shreve (R),-0.1557647674381262,0.36676297939551084,0.0053
+IN,7,André Carson,Patrick McAuley,True,True,1,André Carson (D),0.221786252970037,0.7811987330494681,1.0
+IN,8,Mary Allen,Mark Messmer,True,True,-1,Mark Messmer (R),-0.1761729307034323,0.3499345376746559,0.001575
+IN,9,Brad Meyer,Erin Houchin,True,True,-1,Erin Houchin (R),-0.1455606858054732,0.3751772002559382,0.0080625
+IA,1,Christina Bohannan,Mariannette Miller-Meeks,True,True,-1,Mariannette Miller-Meeks (R),-0.0379540067702227,0.4639089838749916,0.2406125
+IA,2,Lindsay James,Joe Mitchell,True,True,0,Ashley Hinson (R),-0.0435198694789426,0.5108741997692834,0.5828875
+IA,3,Sarah Trone Garriott,Zach Nunn,True,True,-1,Zach Nunn (R),-0.0177519865682025,0.48056744133603996,0.355225
+IA,4,David Dawson,Chris McGowan,True,True,0,Randy Feenstra (R),-0.1490651178813338,0.42384225874829623,0.069625
+KS,1,Lauren Reinhold,Tracey Mann,True,True,-1,Tracey Mann (R),-0.1557647674381262,0.36676297939551084,0.0050125
+KS,2,Don Coover,Derek Schmidt,True,True,-1,Derek Schmidt (R),-0.0945402776422079,0.4172483045580756,0.055875
+KS,3,Sharice Davids,Eric Jenkins,True,True,1,Sharice Davids (D),0.0279087019496288,0.621328536701346,0.990475
+KS,4,Katy Tyndell,Ron Estes,True,True,-1,Ron Estes (R),-0.1086610774772934,0.4056043827613225,0.034175
+KY,1,Drew Williams,James Comer,True,True,-1,James Comer (R),-0.2298731986894146,0.3056536379950325,5e-05
+KY,2,Megan Wingfield,Brett Guthrie,True,True,-1,Brett Guthrie (R),-0.1995701683863843,0.33064132418660497,0.0005125
+KY,3,Morgan McGarvey,Maria Rodriquez,True,True,1,Morgan McGarvey (D),0.1034601346439186,0.6836277679204706,0.9997875
+KY,4,Melissa Strange,Ed Gallrein,True,True,0,Thomas Massie (R),-0.1761729307034323,0.4014893285837263,0.0276875
+KY,5,Ned Pillersdorf,Hal Rogers,True,True,-1,Hal Rogers (R),-0.3190300735605752,0.23213544562867125,0.0
+KY,6,Zach Dembo,Ralph Alvarado,True,True,0,Andy Barr (R),-0.068257037073253,0.4904760885924895,0.426775
+LA,1,Lauren Jewett,Randall Arrington; Steve Scalise,True,True,-1,Steve Scalise (R),-0.1863770123360854,0.34152031681422834,0.001025
+LA,2,Troy Carter; Renada Collins,Peter Williams,True,True,1,Troy Carter (D),0.2523984978679962,0.8064413956307505,1.0
+LA,3,John Day; Priscilla Gonzalez; Tia LeBrun; Caleb Walker,Kate Cotten; Clay Higgins,True,True,-1,Clay Higgins (R),-0.1761729307034323,0.3499345376746559,0.0018125
+LA,4,Conrad Cable; Matt Gromlich,Gordon Heslop; Mike Johnson; Mike Nichols,True,True,-1,Mike Johnson (R),-0.169267138083354,0.35562901037817746,0.0026375
+LA,5,Dan McKay; Patricia Moore; Antonio Wilson,Stewart Cathey Jr.; Misti Cordell; Omar Dantzler; Michael Echols; Gabe Firment; Austin Magee,True,True,0,Julia Letlow (R),-0.1659688490707793,0.40990354944415375,0.040775
+LA,6,Pat Forbes; Lindsay Garcia,Monique Appeaning; Larry Davis; Rick Edmonds; Chris Johnson; Michael Mebruer; Blake Miguez; Stephen Wagley,True,True,0,Cleo Fields (D),-0.1455606858054732,0.42673199116500865,0.0797
+ME,1,Chellie Pingree,Ronald Russell,True,True,1,Chellie Pingree (D),0.1197454366435064,0.6970565244451934,0.9999125
+ME,2,Matthew Dunlap,Paul LePage,True,True,0,Jared Golden (D),-0.0435198694789426,0.5108741997692834,0.5834125
+MD,1,Dan Schwartz,Andy Harris,True,True,-1,Andy Harris (R),-0.0801283272950587,0.4291323072166175,0.0850375
+MD,2,Johnny Olszewski,Dave Wallace,True,True,1,Johnny Olszewski (D),0.0993372733782002,0.6802280827243382,0.9997875
+MD,3,Sarah Elfreth,Berney Flowers,True,True,1,Sarah Elfreth (D),0.1260572397152505,0.7022611971423649,0.999975
+MD,4,Glenn Ivey,George McDermott,True,True,1,Glenn Ivey (D),0.3837891984781371,0.9147853322768733,1.0
+MD,5,Adrian Boafo,Chris Chaffee,True,True,0,Steny Hoyer (D),0.1809699264394247,0.6959870586986877,0.999925
+MD,6,April McClain Delaney,Robin Ficker,True,True,1,April McClain Delaney (D),0.0381127835822819,0.6297427575617736,0.9941875
+MD,7,Kweisi Mfume,Scott Collier,True,True,1,Kweisi Mfume (D),0.3116242500245289,0.855278574439211,1.0
+MD,8,Jamie Raskin,Cheryl Riley,True,True,1,Jamie Raskin (D),0.3013149716740134,0.8467776090338306,1.0
+MA,1,Richard Neal,,True,False,1,Richard Neal (D),0.0789291101128941,,1.0
+MA,2,Jim McGovern,,True,False,1,Jim McGovern (D),0.1299495182761594,,1.0
+MA,3,Lori Trahan,Gary Grossi,True,True,1,Lori Trahan (D),0.1054386830142196,0.6852592663316043,0.999825
+MA,4,Jake Auchincloss,Thomas Stalcup,True,True,1,Jake Auchincloss (D),0.1095413550108533,0.6886423035847659,0.9998875
+MA,5,Katherine Clark,,True,False,1,Katherine Clark (D),0.2394593015709206,,1.0
+MA,6,Dan Koh,Micah Jones,True,True,0,Seth Moulton (D),0.1095413550108533,0.6370875126756954,0.9958625
+MA,7,Ayanna Pressley,,True,False,1,Ayanna Pressley (D),0.3322428067255598,,1.0
+MA,8,Stephen Lynch,Robert Burke,True,True,1,Stephen Lynch (D),0.1401535999088125,0.7138849661660482,0.999975
+MA,9,Bill Keating,Tyler MacAllister,True,True,1,Bill Keating (D),0.0630560942398782,0.650310852998374,0.9983125
+MI,1,Callie Barr,Jack Bergman,True,True,-1,Jack Bergman (R),-0.0985600673762833,0.4139336114918466,0.0479375
+MI,2,Ben Ambrose,John Moolenaar,True,True,-1,John Moolenaar (R),-0.1455606858054732,0.3751772002559382,0.007625
+MI,3,Hillary Scholten,Terri DeBoer,True,True,1,Hillary Scholten (D),0.048316865214935,0.6381569784222011,0.9962625
+MI,4,Sean McCann,Bill Huizenga,True,True,-1,Bill Huizenga (R),-0.0231117062136364,0.4761478505810679,0.322925
+MI,5,Christian Vukasovich,Tim Walberg,True,True,-1,Tim Walberg (R),-0.1288630976793136,0.38894592530027416,0.01635
+MI,6,Debbie Dingell,Heather Smiley,True,True,1,Debbie Dingell (D),0.1260572397152505,0.7022611971423649,0.999925
+MI,7,William Lawrence,Tom Barrett,True,True,-1,Tom Barrett (R),0.0024500336338176,0.4972258987970882,0.477925
+MI,8,Kristen McDonald Rivet,Thomas Smith,True,True,1,Kristen McDonald Rivet (D),-0.0027035429483303,0.5960858741200636,0.9684375
+MI,9,Ray Pooley,Lisa McClain,True,True,-1,Lisa McClain (R),-0.1557647674381262,0.36676297939551084,0.0052125
+MI,10,Christina Hines,Mike Bouchard Jr.,True,True,0,John James (R),-0.0231117062136364,0.5277026414901383,0.7048375
+MI,11,Jeremy Moss,Ethan Baker,True,True,0,Haley Stevens (D),0.0891331917455471,0.6202590709548403,0.9906625
+MI,12,Rashida Tlaib,James Hooper,True,True,1,Rashida Tlaib (D),0.2054172053509893,0.7677009204191989,1.0
+MI,13,Donavan McKinney,T.&nbsp;P. Nykoriak,True,True,0,Shri Thanedar (D),0.2188407448698897,0.7272150948817175,1.0
+MN,1,Jake Johnson,Brad Finstad,True,True,-1,Brad Finstad (R),-0.0537239511115956,0.4509051879997855,0.173775
+MN,2,Matt Little,Eric Pratt,True,True,0,Angie Craig (D),0.0381127835822819,0.5781879666527031,0.933925
+MN,3,Kelly Morrison,Tyler Bass,True,True,1,Kelly Morrison (D),0.1197454366435064,0.6970565244451934,0.9999375
+MN,4,Betty McCollum,Paul Wikstrom,True,True,1,Betty McCollum (D),0.1911740080720778,0.7559560704681856,1.0
+MN,5,Ilhan Omar,John Nagel,True,True,1,Ilhan Omar (D),0.3238270692965676,0.8653409416537429,1.0
+MN,6,Doug Chapin,Tom Emmer,True,True,-1,Tom Emmer (R),-0.0945402776422079,0.4172483045580756,0.055725
+MN,7,Erik Osberg,Michelle Fischbach,True,True,-1,Michelle Fischbach (R),-0.1761729307034323,0.3499345376746559,0.0018625
+MN,8,Trina Swanson,Pete Stauber,True,True,-1,Pete Stauber (R),-0.0639280327442487,0.442490967139358,0.133225
+MS,1,Cliff Johnson,Trent Kelly,True,True,-1,Trent Kelly (R),-0.1793681481843641,0.3472997816476533,0.001575
+MS,2,Bennie Thompson,Ron Eller,True,True,1,Bennie Thompson (D),0.1135611447449287,0.6919569966509947,0.9998625
+MS,3,Michael Chiaradio,Michael Guest,True,True,-1,Michael Guest (R),-0.1389641077803237,0.38061669656974995,0.01025
+MS,4,Jeffrey Hulum III,Mike Ezell,True,True,-1,Mike Ezell (R),-0.2096711784873944,0.3223120954560808,0.0003375
+MO,1,Wesley Bell,Paul Berry,True,True,1,Wesley Bell (D),0.2953793265631105,0.8418831138004297,1.0
+MO,2,Fred Wellman,Ann Wagner,True,True,-1,Ann Wagner (R),-0.0333157878462895,0.4677336297206404,0.2668625
+MO,3,Bethany Mann,Bob Onder,True,True,-1,Bob Onder (R),-0.1288630976793136,0.38894592530027416,0.0160875
+MO,4,Jordan Herrera,Mark Alford,True,True,-1,Mark Alford (R),-0.2096711784873944,0.3223120954560808,0.0002875
+MO,5,Emanuel Cleaver,Rick Brattin,True,True,1,Emanuel Cleaver (D),0.1236621548459388,0.700286225381519,0.9999375
+MO,6,Josh Smead,Chris Stigall,True,True,0,Sam Graves (R),-0.1894691582853742,0.39052534382619963,0.0173875
+MO,7,Missi Hesketh,Eric Burlison,True,True,-1,Eric Burlison (R),-0.2096711784873944,0.3223120954560808,0.00025
+MO,8,Chris Reichard,Jason Smith,True,True,-1,Jason Smith (R),-0.2702772390934551,0.27233672307293577,0.0
+MT,1,Sam Forstag,Aaron Flint,True,True,0,Ryan Zinke (R),-0.0492004922435123,0.5061899943418289,0.5442375
+MT,2,Brian Miller,Troy Downing,True,True,-1,Troy Downing (R),-0.1419839973981515,0.3781265147843355,0.00945
+NE,1,Chris Backemeyer,Mike Flood,True,True,-1,Mike Flood (R),-0.0581560269722429,0.44725052641394325,0.153225
+NE,2,Denise Powell,Brinker Harding,True,True,0,Don Bacon (R),0.032753063936848,0.5737683758977312,0.9241625
+NE,3,Becky Stille,Adrian Smith,True,True,-1,Adrian Smith (R),-0.2601762289924449,0.28066595180346,1.25e-05
+NV,1,Dina Titus,Carrie Buck,True,True,1,Dina Titus (D),0.0177046203169757,0.6129143158409186,0.985725
+NV,2,Teresa Benitez-Thompson,David Flippo,True,True,0,Mark Amodei (R),-0.0639280327442487,0.49404575804842843,0.4553875
+NV,3,Susie Lee,Martin O'Donnell,True,True,1,Susie Lee (D),0.0024500336338176,0.600335480615229,0.972825
+NV,4,Steven Horsford,Cody Whipple,True,True,1,Steven Horsford (D),0.0177046203169757,0.6129143158409186,0.985275
+NH,1,Stefany Shaheen,Anthony DiLorenzo,True,True,0,Chris Pappas (D),0.0175005386843227,0.5611912405146396,0.884825
+NH,2,Maggie Goodlander,Lily Tang Williams,True,True,1,Maggie Goodlander (D),0.0226520538358378,0.6169939380762772,0.988275
+NJ,1,Donald Norcross,Damon Galdo,True,True,1,Donald Norcross (D),0.1034601346439186,0.6836277679204706,0.9998
+NJ,2,Zack Mullock,Jeff Van Drew,True,True,-1,Jeff Van Drew (R),-0.0581560269722429,0.44725052641394325,0.1557625
+NJ,3,Herb Conaway,Michael McGuire,True,True,1,Herb Conaway (D),0.048316865214935,0.6381569784222011,0.9964
+NJ,4,Rachel Peace,Chris Smith,True,True,-1,Chris Smith (R),-0.1455606858054732,0.3751772002559382,0.0082375
+NJ,5,Josh Gottheimer,Sean Kirrane,True,True,1,Josh Gottheimer (D),0.0177046203169757,0.6129143158409186,0.9858125
+NJ,6,Frank Pallone,Hillary Herzig,True,True,1,Frank Pallone (D),0.0381127835822819,0.6297427575617736,0.993375
+NJ,7,Rebecca Bennett,Thomas Kean Jr.,True,True,-1,Thomas Kean Jr. (R),-0.0027035429483303,0.4929762923019228,0.444225
+NJ,8,Rob Menendez,,True,False,1,Rob Menendez (D),0.1299495182761594,,1.0
+NJ,9,Nellie Pou,Rosie Pino,True,True,1,Nellie Pou (D),0.0023458995090649,0.6002496122778009,0.9737125
+NJ,10,LaMonica McIver,Carmen Bucco,True,True,1,LaMonica McIver (D),0.2650762962600803,0.8168954276088574,1.0
+NJ,11,Analilia Mejia,Joe Hathaway,True,True,1,Analilia Mejia (D),0.048316865214935,0.6381569784222011,0.996
+NJ,12,Adam Hamawy,Gregg Mele,True,True,0,Bonnie Watson Coleman (D),0.1299495182761594,0.6539159543965504,0.9986
+NM,1,Melanie Stansbury,Didi Okpareke,True,True,1,Melanie Stansbury (D),0.0745108479626732,0.6597563701154633,0.99915
+NM,2,Gabe Vasquez,Greg Cunningham,True,True,1,Gabe Vasquez (D),-0.0027035429483303,0.5960858741200636,0.9686875
+NM,3,Teresa Leger Fernández,Martin Zamora,True,True,1,Teresa Leger Fernandez (D),0.0381127835822819,0.6297427575617736,0.9941875
+NY,1,Chris Gallant,Nick LaLota,True,True,-1,Nick LaLota (R),-0.0435198694789426,0.459319408860213,0.2156
+NY,2,Patrick Halpin,Andrew Garbarino,True,True,-1,Andrew Garbarino (R),-0.0581560269722429,0.44725052641394325,0.1558125
+NY,3,Tom Suozzi,Mike LiPetri,True,True,1,Tom Suozzi (D),-0.0129076245809834,0.5876716532596362,0.9552875
+NY,4,Laura Gillen,Jeanine Driscoll,True,True,1,Laura Gillen (D),0.0125510437348277,0.6086647093457531,0.9825625
+NY,5,Gregory Meeks,George Marsh,True,True,1,Gregory Meeks (D),0.221786252970037,0.7811987330494681,1.0
+NY,6,Grace Meng,Joseph Chou,True,True,1,Grace Meng (D),0.0381127835822819,0.6297427575617736,0.9940875
+NY,7,Claire Valdez,Melvin Rivera,True,True,0,Nydia Velázquez (D),0.2421944162353431,0.7464723838612526,1.0
+NY,8,Hakeem Jeffries,Lewis Mizrahi,True,True,1,Hakeem Jeffries (D),0.23199033460269,0.7896129539098955,1.0
+NY,9,Yvette Clarke,Joel Azumah,True,True,1,Yvette Clarke (D),0.2115821713373839,0.7727845121890404,1.0
+NY,10,Brad Lander,Jennifer Moore,True,True,0,Dan Goldman (D),0.3136229876639145,0.8053719298842448,1.0
+NY,11,Michael DeCillis,Nicole Malliotakis,True,True,-1,Nicole Malliotakis (R),-0.114948440907514,0.40041986283722064,0.0268875
+NY,12,Micah Lasher,Caroline Shinkle,True,True,0,Jerry Nadler (D),0.3340311509292207,0.8222003716051,1.0
+NY,13,Darializa Avila Chevalier,Jomo Williams,True,True,0,Adriano Espaillat (D),0.3054803366641207,0.7986575516218837,1.0
+NY,14,Alexandria Ocasio-Cortez,Diamant Hysenaj,True,True,1,Alexandria Ocasio-Cortez (D),0.1707658448067716,0.7391276287473306,1.0
+NY,15,Ritchie Torres,Stylo Sapaskis,True,True,1,Ritchie Torres (D),0.2549752861590702,0.8085661988783333,1.0
+NY,16,George Latimer,Joseph Cinquemani,True,True,1,George Latimer (D),0.1741672053509893,0.7419323690341397,1.0
+NY,17,Cait Conley,Mike Lawler,True,True,-1,Mike Lawler (R),0.0125510437348277,0.5055551275276123,0.5434125
+NY,18,Pat Ryan,Jacqueline Auringer,True,True,1,Pat Ryan (D),0.0226520538358378,0.6169939380762772,0.98815
+NY,19,Josh Riley,Peter Oberacker,True,True,1,Josh Riley (D),0.0125510437348277,0.6086647093457531,0.9819375
+NY,20,Paul Tonko,Ralph Ambrosio,True,True,1,Paul Tonko (D),0.0789291101128941,0.6633996410034834,0.99925
+NY,21,Blake Gendebien,Anthony Constantino,True,True,0,Elise Stefanik (R),-0.0985600673762833,0.46548840240091705,0.25205
+NY,22,John Mannion,Kailee Buller,True,True,1,John Mannion (D),0.0475005386843227,0.6374838407533667,0.995975
+NY,23,Aaron Gies,Nick Langworthy,True,True,-1,Nick Langworthy (R),-0.0985600673762833,0.4139336114918466,0.0480375
+NY,24,Alissa Ellman,Claudia Tenney,True,True,-1,Claudia Tenney (R),-0.1086610774772934,0.4056043827613225,0.0335125
+NY,25,Joseph Morelle,Virginia McIntyre,True,True,1,Joseph Morelle (D),0.1034601346439186,0.6836277679204706,0.99975
+NY,26,Tim Kennedy,Dennis Hannon,True,True,1,Tim Kennedy (D),0.1034601346439186,0.6836277679204706,0.999925
+NC,1,Don Davis,Laurie Buckhout,True,True,1,Don Davis (D),-0.0480550168712328,0.5586893369626083,0.8717875
+NC,2,Deborah Ross,Eugene Douglass,True,True,1,Deborah Ross (D),0.1809699264394247,0.7475418496077582,1.0
+NC,3,Raymond Smith Jr.,Greg Murphy,True,True,-1,Greg Murphy (R),-0.0581560269722429,0.44725052641394325,0.1532875
+NC,4,Valerie Foushee,Max Ganorkar,True,True,1,Valerie Foushee (D),0.23477326595705,0.7919077414172848,1.0
+NC,5,Chuck Hubbard,Virginia Foxx,True,True,-1,Virginia Foxx (R),-0.0783580471742631,0.4305920689528949,0.09135
+NC,6,Cyril Jefferson,Addison McDowell,True,True,-1,Addison McDowell (R),-0.0783580471742631,0.4305920689528949,0.08915
+NC,7,Kimberly Hardy,David Rouzer,True,True,-1,David Rouzer (R),-0.0581560269722429,0.44725052641394325,0.1543625
+NC,8,Colby Watson,Mark Harris,True,True,-1,Mark Harris (R),-0.0884590572752732,0.42226284022237076,0.0664875
+NC,9,Richard Ojeda,Richard Hudson,True,True,-1,Richard Hudson (R),-0.068257037073253,0.4389212976834191,0.119075
+NC,10,Ashley Bell,Pat Harrigan,True,True,-1,Pat Harrigan (R),-0.0783580471742631,0.4305920689528949,0.089425
+NC,11,Jamie Ager,Jennifer Balkcom,True,True,0,Chuck Edwards (R),-0.0379540067702227,0.515463774784062,0.6171125
+NC,12,Alma Adams,Jack Codiga,True,True,1,Alma Adams (D),0.2421944162353431,0.7980271747703229,1.0
+NC,13,Paul Barringer,Brad Knott,True,True,-1,Brad Knott (R),-0.0783580471742631,0.4305920689528949,0.09025
+NC,14,Lakesha Womack,Tim Moore,True,True,-1,Tim Moore (R),-0.068257037073253,0.4389212976834191,0.1180875
+ND,0,Trygve Hammer,Julie Fedorchak,True,True,-1,Julie Fedorchak (R),-0.1793681481843641,0.3472997816476533,0.001525
+OH,1,Greg Landsman,Eric Conroy,True,True,1,Greg Landsman (D),-0.0076509764671924,0.5920062518847049,0.9621375
+OH,2,Jennifer Mazzuckelli,David Taylor,True,True,-1,David Taylor (R),-0.2024994613156773,0.3282258478547529,0.0005
+OH,3,Joyce Beatty,Cleophus Dulaney,True,True,1,Joyce Beatty (D),0.2145712457550297,0.7752492839562365,1.0
+OH,4,Joshua Kolasinski,Jim Jordan,True,True,-1,Jim Jordan (R),-0.2096711784873944,0.3223120954560808,0.0002375
+OH,5,Brian Shaver,Bob Latta,True,True,-1,Bob Latta (R),-0.1086610774772934,0.4056043827613225,0.0340875
+OH,6,Elizabeth Kirtley,Michael Rulli,True,True,-1,Michael Rulli (R),-0.169267138083354,0.35562901037817746,0.00255
+OH,7,Brian Poindexter,Max Miller,True,True,-1,Max Miller (R),-0.0480550168712328,0.45557975514446747,0.1946
+OH,8,Vanessa Enoch,Warren Davidson,True,True,-1,Warren Davidson (R),-0.068257037073253,0.4389212976834191,0.11715
+OH,9,Marcy Kaptur,Derek Merrin,True,True,1,Marcy Kaptur (D),-0.0480550168712328,0.5586893369626083,0.8736125
+OH,10,Kristina Knickerbocker,Mike Turner,True,True,-1,Mike Turner (R),-0.0278529966692126,0.47223821260551574,0.2958875
+OH,11,Shontel Brown,Mike Kirchner,True,True,1,Shontel Brown (D),0.2852783164621005,0.8335538850699056,1.0
+OH,12,Jerrad Christian,Troy Balderson,True,True,-1,Troy Balderson (R),-0.1424994613156773,0.37770146651406644,0.0087875
+OH,13,Emilia Sykes,Carey Coleman,True,True,1,Emilia Sykes (D),0.0226520538358378,0.6169939380762772,0.988375
+OH,14,Maria Jukic,David Joyce,True,True,-1,David Joyce (R),-0.0985600673762833,0.4139336114918466,0.0477875
+OH,15,Don Leonard,Mike Carey,True,True,-1,Mike Carey (R),-0.0424994613156772,0.46016083094625576,0.2203875
+OK,1,John Croisant,Mark Tedford,True,True,0,Kevin Hern (R),-0.1047443592748609,0.4603888746067186,0.223075
+OK,2,Brandon Wade,Josh Brecheen,True,True,-1,Josh Brecheen (R),-0.278213747029963,0.26579232907038114,0.0
+OK,3,Suzie Byrd,Frank Lucas,True,True,-1,Frank Lucas (R),-0.2271933388666976,0.30786343337251854,0.00015
+OK,4,Mitchell Jacob,Tom Cole,True,True,-1,Tom Cole (R),-0.1659688490707793,0.3583487585350833,0.0031125
+OK,5,Jena Nelson,Stephanie Bice,True,True,-1,Stephanie Bice (R),-0.0843361960095548,0.4256625254185031,0.07465
+OR,1,Suzanne Bonamici,Barbara Kahl,True,True,1,Suzanne Bonamici (D),0.2054172053509893,0.7677009204191989,1.0
+OR,2,Chris Beck,Cliff Bentz,True,True,-1,Cliff Bentz (R),-0.131674719047636,0.3866274801897158,0.0138875
+OR,3,Maxine Dexter,Loran Ayles,True,True,1,Maxine Dexter (D),0.247083872017656,0.8020589889326111,1.0
+OR,4,Val Hoyle,Monique DeSpain,True,True,1,Val Hoyle (D),0.0745108479626732,0.6597563701154633,0.9988875
+OR,5,Janelle Bynum,Patti Adair,True,True,1,Janelle Bynum (D),0.0538922912616422,0.6427544393047027,0.99705
+OR,6,Andrea Salinas,David Russ,True,True,1,Andrea Salinas (D),0.0642015696121577,0.6512554047100829,0.9981
+PA,1,Bob Harvie,Brian Fitzpatrick,True,True,-1,Brian Fitzpatrick (R),0.0125510437348277,0.5055551275276123,0.5419625
+PA,2,Brendan Boyle,Jessica Arriaga,True,True,1,Brendan Boyle (D),0.1842682154519995,0.7502615977646641,1.0
+PA,3,Chris Rabb,,True,False,0,Dwight Evans (D),0.3963894275732115,,1.0
+PA,4,Madeleine Dean,Aurora Stuski,True,True,1,Madeleine Dean (D),0.0832581144418985,0.6669693104594224,0.9993375
+PA,5,Mary Gay Scanlon,Nicholas Manganaro,True,True,1,Mary Gay Scanlon (D),0.1539651851489692,0.7252739115730915,0.9999875
+PA,6,Chrissy Houlahan,Marty Young,True,True,1,Chrissy Houlahan (D),0.0630560942398782,0.650310852998374,0.99795
+PA,7,Bob Brooks,Ryan Mackenzie,True,True,-1,Ryan Mackenzie (R),-0.0076509764671924,0.48889667006656407,0.4155625
+PA,8,Paige Cognetti,Rob Bresnahan,True,True,-1,Rob Bresnahan (R),-0.0379540067702227,0.4639089838749916,0.2417875
+PA,9,Rachel Wallace,Dan Meuser,True,True,-1,Dan Meuser (R),-0.1824994613156773,0.3447177207411908,0.0012875
+PA,10,Janelle Stelson,Scott Perry,True,True,-1,Scott Perry (R),-0.0177519865682025,0.48056744133603996,0.35465
+PA,11,Nancy Mannion,Lloyd Smucker,True,True,-1,Lloyd Smucker (R),-0.0985600673762833,0.4139336114918466,0.047575
+PA,12,Summer Lee,James Hayes,True,True,1,Summer Lee (D),0.1034601346439186,0.6836277679204706,0.9997625
+PA,13,Beth Farnham,John Joyce,True,True,-1,John Joyce (R),-0.2197721885884045,0.3139828667255567,0.0002125
+PA,14,Alan Bradstock,Guy Reschenthaler,True,True,-1,Guy Reschenthaler (R),-0.1591661279823439,0.3639582391087017,0.0047875
+PA,15,Ray Bilger,Glenn Thompson,True,True,-1,Glenn Thompson (R),-0.1824994613156773,0.3447177207411908,0.0015125
+PA,16,Justin Wagner,Mike Kelly,True,True,-1,Mike Kelly (R),-0.1086610774772934,0.4056043827613225,0.034525
+PA,17,Chris Deluzio,Tony Guy,True,True,1,Chris Deluzio (D),0.032753063936848,0.6253231668068016,0.9922125
+RI,1,Gabe Amo,Kellie Keenan,True,True,1,Gabe Amo (D),0.1197454366435064,0.6970565244451934,0.9999375
+RI,2,Seth Magaziner,Vic Mellor,True,True,1,Seth Magaziner (D),0.0381127835822819,0.6297427575617736,0.9940875
+SC,1,Nancy Lacore,Jenny Costa Honeycutt,True,True,0,Nancy Mace (R),-0.0581560269722429,0.49880531732301375,0.491125
+SC,2,Zyon Khalifa,Joe Wilson,True,True,-1,Joe Wilson (R),-0.0639280327442487,0.442490967139358,0.1309625
+SC,3,Eunice Lehmacher,Sheri Biggs,True,True,-1,Sheri Biggs (R),-0.2096711784873944,0.3223120954560808,0.00035
+SC,4,Courtney McClain,William Timmons,True,True,-1,William Timmons (R),-0.114948440907514,0.40041986283722064,0.0274
+SC,5,Mallory Dittmer,Wes Climer,True,True,0,Ralph Norman (R),-0.1086610774772934,0.4571591736703929,0.2032625
+SC,6,Jim Clyburn,John Peterson,True,True,1,Jim Clyburn (D),0.1236621548459388,0.700286225381519,0.9999375
+SC,7,John Vincent,Russell Fry,True,True,-1,Russell Fry (R),-0.1288630976793136,0.38894592530027416,0.0156625
+SD,0,Nikki Gronli,Marty Jackley,True,True,0,Dusty Johnson (R),-0.1419839973981515,0.4296813056934059,0.0875625
+TN,1,Kristi Burke,Diana Harshbarger,True,True,-1,Diana Harshbarger (R),-0.2803782491944652,0.2640074943424116,1.25e-05
+TN,2,Michaela Barnett,Tim Burchett,True,True,-1,Tim Burchett (R),-0.1659688490707793,0.3583487585350833,0.0031125
+TN,3,Anna Golladay,Chuck Fleischmann,True,True,-1,Chuck Fleischmann (R),-0.1761729307034323,0.3499345376746559,0.001875
+TN,4,Victoria Broderick,Scott DesJarlais,True,True,-1,Scott DesJarlais (R),-0.114948440907514,0.40041986283722064,0.0274375
+TN,5,Chaz Molder,Charlie Hatcher,True,True,0,Andy Ogles (R),-0.1086610774772934,0.4571591736703929,0.204925
+TN,6,Mike Croley,Johnny Garrett,True,True,0,John Rose (R),-0.1288630976793136,0.4405007162093446,0.12475
+TN,7,Darden Copeland,Matt Van Epps,True,True,-1,Matt Van Epps (R),-0.1047443592748609,0.4088340836976482,0.0399875
+TN,8,Heidi Kuhn,David Kustoff,True,True,-1,David Kustoff (R),-0.0945402776422079,0.4172483045580756,0.0548
+TN,9,Justin Pearson,Brent Taylor,True,True,0,Steve Cohen (D),-0.0985600673762833,0.46548840240091705,0.2540375
+TX,1,Yolanda Prince,Nathaniel Moran,True,True,-1,Nathaniel Moran (R),-0.2399742087904247,0.2973244092645083,8.75e-05
+TX,2,Shaun Finnie,Steve Toth,True,True,0,Dan Crenshaw (R),-0.1086610774772934,0.4571591736703929,0.2049375
+TX,3,Evan Hunt,Keith Self,True,True,-1,Keith Self (R),-0.114948440907514,0.40041986283722064,0.0275875
+TX,4,Jason Pearce,Pat Fallon,True,True,-1,Pat Fallon (R),-0.114948440907514,0.40041986283722064,0.0268875
+TX,5,Chelsey Hockett,Lance Gooden,True,True,-1,Lance Gooden (R),-0.0985600673762833,0.4139336114918466,0.0488125
+TX,6,Danny Minton,Jake Ellzey,True,True,-1,Jake Ellzey (R),-0.1086610774772934,0.4056043827613225,0.0343
+TX,7,Lizzie Fletcher,Alexander Hale,True,True,1,Lizzie Fletcher (D),0.1260572397152505,0.7022611971423649,0.9999125
+TX,8,Laura Jones,Jessica Hart Steinmann,True,True,0,Morgan Luttrell (R),-0.1288630976793136,0.4405007162093446,0.126725
+TX,9,Leticia Gutierrez,Alex Mealer,True,True,0,,-0.0884590572752732,0.47381763113144126,0.3057
+TX,10,Caitlin Rourk,Chris Gober,True,True,0,Michael McCaul (R),-0.1086610774772934,0.4571591736703929,0.204175
+TX,11,Claire Reynolds,August Pfluger,True,True,-1,August Pfluger (R),-0.169267138083354,0.35562901037817746,0.0025125
+TX,12,Angela Rodriguez Prilliman,Craig Goldman,True,True,-1,Craig Goldman (R),-0.1086610774772934,0.4056043827613225,0.03335
+TX,13,Mark Nair,Ronny Jackson,True,True,-1,Ronny Jackson (R),-0.2298731986894146,0.3056536379950325,0.00015
+TX,14,Thurman Bartie,Randy Weber,True,True,-1,Randy Weber (R),-0.1187620875783035,0.39727515403079827,0.02305
+TX,15,Bobby Pulido,Monica De La Cruz,True,True,-1,Monica De La Cruz (R),-0.0824994613156773,0.42717708517338,0.079675
+TX,16,Veronica Escobar,Adam Bauman,True,True,1,Veronica Escobar (D),0.0933591245429085,0.6752985391899465,0.999575
+TX,17,Casey Shepard,Pete Sessions,True,True,-1,Pete Sessions (R),-0.0985600673762833,0.4139336114918466,0.04785
+TX,18,Christian Menefee,Ronald Whitfield,True,True,1,Christian Menefee (D); Al Green (D),0.2852783164621005,0.8335538850699056,1.0
+TX,19,Kyle Rable,Tom Sell,True,True,0,Jodey Arrington (R),-0.2500752188914348,0.3405499714430546,0.000975
+TX,20,Joaquin Castro,Edgardo Rafael Baez,True,True,1,Joaquin Castro (D),0.1539651851489692,0.7252739115730915,0.9999875
+TX,21,Kristin Hook,Mark Teixeira,True,True,0,Chip Roy (R),-0.0985600673762833,0.46548840240091705,0.2523875
+TX,22,Marquette Greene-Scott,Trever Nehls,True,True,0,Troy Nehls (R),-0.1047443592748609,0.4603888746067186,0.223175
+TX,23,Katy Padilla Stout,Brandon Herrera,True,True,0,,-0.068257037073253,0.4904760885924895,0.4302625
+TX,24,Kevin Burge,Beth Van Duyne,True,True,-1,Beth Van Duyne (R),-0.0741321143769017,0.43407674627893056,0.1020375
+TX,25,Dione Sims,Roger Williams,True,True,-1,Roger Williams (R); Marc Veasey (D),-0.1187620875783035,0.39727515403079827,0.0237875
+TX,26,Steven Shook,Brandon Gill,True,True,-1,Brandon Gill (R),-0.114948440907514,0.40041986283722064,0.026175
+TX,27,Tanya Lloyd,Michael Cloud,True,True,-1,Michael Cloud (R),-0.0985600673762833,0.4139336114918466,0.0483875
+TX,28,Henry Cuellar,Tano Tijerina,True,True,1,Henry Cuellar (D),-0.0480550168712328,0.5586893369626083,0.8710125
+TX,29,Sylvia Garcia,Martha Fierro,True,True,1,Sylvia Garcia (D),0.1640661952499792,0.7336031403036156,0.9999875
+TX,30,Frederick Haynes III,Everett Jackson,True,True,0,,0.24487427605806,0.7486821792387386,1.0
+TX,31,Justin Early,John Carter,True,True,-1,John Carter (R),-0.1047443592748609,0.4088340836976482,0.038525
+TX,32,Dan Barrios,Jace Yarbrough,True,True,0,,-0.0843361960095548,0.4772173163275735,0.3321125
+TX,33,Colin Allred,Patrick Gillespie,True,True,0,Jasmine Crockett (D); Julie Johnson (D),0.1707658448067716,0.6875728378382602,0.9999125
+TX,34,Vicente Gonzalez,Eric Flores,True,True,1,Vicente Gonzalez (D),-0.0424994613156772,0.5632704127643966,0.8879875
+TX,35,Johnny Garcia,Carlos De La Cruz,True,True,0,,-0.0480550168712328,0.5071345460535379,0.55485
+TX,36,Rhonda Hart,Brian Babin,True,True,-1,Brian Babin (R),-0.1187620875783035,0.39727515403079827,0.0238625
+TX,37,Greg Casar,Lauren Peña,True,True,1,Lloyd Doggett (D); Greg Casar (D),0.2932148243986084,0.8400982790724603,1.0
+TX,38,Melissa McDonough,Jon Bonck,True,True,0,Wesley Hunt (R),-0.0985600673762833,0.46548840240091705,0.252
+UT,1,Ben McAdams,Riley Owen,True,True,0,,0.1260572397152505,0.6507064062332946,0.9983
+UT,2,Peter Crosby,Blake Moore,True,True,-1,Blake Moore (R),-0.1419839973981515,0.3781265147843355,0.0094875
+UT,3,Kent Udell,Celeste Maloy,True,True,-1,Celeste Maloy (R),-0.2038396675012443,0.3271207223520535,0.0004625
+UT,4,Jonny Larsen,Mike Kennedy,True,True,-1,Burgess Owens (R); Mike Kennedy (R),-0.1626025540991824,0.3611245839735748,0.0037625
+VT,0,Becca Balint,Gerald Malloy,True,True,1,Becca Balint (D),0.1672943531173124,0.7362650587638863,1.0
+VA,1,Shannon Taylor,Rob Wittman,True,True,-1,Rob Wittman (R),-0.0177519865682025,0.48056744133603996,0.3507625
+VA,2,Elaine Luria,Jen Kiggans,True,True,-1,Jen Kiggans (R),0.0024500336338176,0.4972258987970882,0.4793125
+VA,3,Bobby Scott,Edwin Rivera,True,True,1,Bobby Scott (D),0.1842682154519995,0.7502615977646641,1.0
+VA,4,Jennifer McClellan,Robert Murray,True,True,1,Jennifer McClellan (D),0.1741672053509893,0.7419323690341397,1.0
+VA,5,Tom Perriello,John McGuire,True,True,-1,John McGuire (R),-0.0581560269722429,0.44725052641394325,0.152225
+VA,6,Beth Macy,Ben Cline,True,True,-1,Ben Cline (R),-0.114948440907514,0.40041986283722064,0.0280875
+VA,7,Eugene Vindman,Doug Ollivant,True,True,1,Eugene Vindman (D),0.0226520538358378,0.6169939380762772,0.987875
+VA,8,Don Beyer,Tony Sabio,True,True,1,Don Beyer (D),0.2626025795006492,0.8148556164911778,1.0
+VA,9,Joy Powers,Morgan Griffith,True,True,-1,Morgan Griffith (R),-0.2124994613156772,0.31997991141153403,0.0002875
+VA,10,Suhas Subramanyam,Dave Beckwith,True,True,1,Suhas Subramanyam (D),0.048316865214935,0.6381569784222011,0.9962
+VA,11,James Walkinshaw,Arthur Purves,True,True,1,James Walkinshaw (D),0.1879129098183433,0.753266989574647,1.0
+WA,1,Suzan DelBene,Mary Silva,True,True,1,Suzan DelBene (D),0.1569850747667969,0.7277640933585059,1.0
+WA,2,Rick Larsen,Edwin Feller,True,True,1,Rick Larsen (D),0.1260572397152505,0.7022611971423649,0.9999875
+WA,3,Marie Gluesenkamp Perez,John Braun,True,True,1,Marie Gluesenkamp Perez (D),-0.0079633788414504,0.5917486468724207,0.9619625
+WA,4,John Duresky,Amanda McKinney,True,True,0,Dan Newhouse (R),-0.1007468839960896,0.46368516731492726,0.244575
+WA,5,Carmela Conroy,Michael Baumgartner,True,True,-1,Michael Baumgartner (R),-0.0492004922435123,0.4546352034327585,0.1882375
+WA,6,Emily Randall,Teresa Fox,True,True,1,Emily Randall (D),0.1054386830142196,0.6852592663316043,0.9998625
+WA,7,Pramila Jayapal,Nirav Sheth,True,True,1,Pramila Jayapal (D),0.3940984768286525,0.9232862976822536,1.0
+WA,8,Kim Schrier,Spencer Meline,True,True,1,Kim Schrier (D),0.0332737345606113,0.6257525084939419,0.9924125
+WA,9,Adam Smith,Doug Basler,True,True,1,Adam Smith (D),0.2188407448698897,0.7787698857907879,1.0
+WA,10,Marilyn Strickland,Chris Chung,True,True,1,Marilyn Strickland (D),0.1012505386843227,0.6818057491356685,0.999725
+WV,1,Vince George,Carol Miller,True,True,-1,Carol Miller (R),-0.2169892572340446,0.31627765423294596,0.0001625
+WV,2,Ace Parsi,Riley Moore,True,True,-1,Riley Moore (R),-0.1965810939687385,0.33310609595380086,0.000575
+WI,1,Mitchell Berman,Bryan Steil,True,True,-1,Bryan Steil (R),-0.0177519865682025,0.48056744133603996,0.35565
+WI,2,Mark Pocan,,True,False,1,Mark Pocan (D),0.2115821713373839,,1.0
+WI,3,Rebecca Cooke,Derrick Van Orden,True,True,-1,Derrick Van&nbsp;Orden (R),-0.0278529966692126,0.47223821260551574,0.29685
+WI,4,Gwen Moore,Tim Rogers,True,True,1,Gwen Moore (D),0.2728066611333022,0.8232698373516054,1.0
+WI,5,Andrew Beck,Scott Fitzgerald,True,True,-1,Scott Fitzgerald (R),-0.1047443592748609,0.4088340836976482,0.0390875
+WI,6,Brad Smith,Glenn Grothman,True,True,-1,Glenn Grothman (R),-0.0783580471742631,0.4305920689528949,0.0903375
+WI,7,Fred Clark,Michael Alfonso,True,True,0,Tom Tiffany (R),-0.1086610774772934,0.4571591736703929,0.2040875
+WI,8,Rick Crosson,Tony Wied,True,True,-1,Tony Wied (R),-0.0741321143769017,0.43407674627893056,0.10055
+WY,0,Lisa Kinney,Chuck Gray,True,True,0,Harriet Hageman (R),-0.2271933388666976,0.359418224281589,0.003

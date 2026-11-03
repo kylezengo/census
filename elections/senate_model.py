@@ -39,7 +39,7 @@ from scipy.stats import norm
 
 DATA = Path(__file__).parent / "data"
 ROOT = Path(__file__).parent.parent  # the app reads c_forecast_*.csv from here
-FORECAST_DATE = "2026-10-28"  # when the inputs below (polls, candidates) were read
+FORECAST_DATE = "2026-11-02"  # when the polls and generic ballot were last read
 N_SIMS = 20000
 rng = np.random.default_rng(0)
 
@@ -48,7 +48,7 @@ rng = np.random.default_rng(0)
 # 2018 49.7 / 42.4, 2022 45.5 / 48.0; presidential years from Wikipedia's
 # House election pages: 2016 46.0 / 45.4, 2020 49.3 / 42.5, 2024 46.8 / 47.6
 # as of 10/29; 2012 was a tie per FiveThirtyEight). 2026: RCP average
-# 10/9-10/26, D 51.6 / R 43.6; other aggregators range D+7.6 to D+9.
+# through 11/1, D 52.1 / R 43.1 (10/9-10/26 was 51.6 / 43.6).
 GENERIC_BALLOT = {
     2010: 41.3 / (41.3 + 50.7),
     2012: 0.5,
@@ -58,7 +58,7 @@ GENERIC_BALLOT = {
     2020: 49.3 / (49.3 + 42.5),
     2022: 45.5 / (45.5 + 48.0),
     2024: 46.8 / (46.8 + 47.6),
-    2026: 51.6 / (51.6 + 43.6),
+    2026: 52.1 / (52.1 + 43.1),
 }
 BACKTEST = tuple(range(2010, 2026, 2))
 # Actual House margin minus final RCP generic ballot, 2002-2020 (+ = Democrats
